@@ -1,0 +1,114 @@
+{% extends "layout.html" %}
+{% block content %}
+<style>
+    body { background-color: #f4f7f9; }
+    .container { max-width: 900px; margin: 2rem auto; }
+    .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .header h1 { font-size: 1.5rem; font-weight: 700; margin: 0; }
+    .card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.75rem;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
+    }
+    .card-body { padding: 2rem; }
+    .shipment-info {
+        background: #f8fafc;
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        margin-bottom: 2rem;
+        border: 2px dashed #d1d5db;
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 1rem;
+    }
+    .shipment-info strong { color: #64748b; display: block; font-size: 0.8rem; margin-bottom: 2px; }
+    .shipment-info span { font-weight: 500; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #f8fafc; text-align: left; padding: 12px; font-size: 0.85rem; color: #64748b; border-bottom: 2px solid #e2e8f0; }
+    td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }
+    tr:last-child td { border-bottom: none; }
+
+    @media print {
+        body { background-color: #fff; }
+        .no-print { display: none !important; }
+        .container { max-width: 100%; margin: 0; }
+        .card { box-shadow: none; border: none; }
+        body * { visibility: hidden; }
+        #print-area, #print-area * { visibility: visible; }
+        #print-area { position: absolute; left: 0; top: 0; width: 100%; }
+    }
+</style>
+
+<div class="container">
+    <div class="header no-print">
+        <h1>Shipment Detail</h1>
+        <div>
+            <a href="/admin" class="btn btn-outline-secondary" id="back-to-history">← Back to History</a>
+            <button onclick="window.print()" class="btn btn-primary">🖨️ Print</button>
+        </div>
+    </div>
+
+    <div class="card" id="print-area">
+        <div class="card-body">
+            <h2 style="text-align: center; margin-bottom: 2rem;">Dispatch Challan</h2>
+            <div class="shipment-info">
+                <div style="grid-column: 1 / -1;"><strong>Customer</strong> <span>{{ shipment.customer_name or 'N/A' }}</span></div>
+                <div style="grid-column: 1 / -1;"><strong>Address</strong> <span>{{ shipment.customer_address or 'N/A' }}</span></div>
+                <div><strong>Challan No.</strong> <span>{{ shipment.challan_no or 'N/A' }}</span></div>
+                <div><strong>Vehicle No.</strong> <span>{{ shipment.vehicle_no or 'N/A' }}</span></div>
+                <div><strong>Date</strong> <span>{{ shipment.created_at | format_datetime }}</span></div>
+                <div><strong>Customer Mobile</strong> <span>{{ shipment.customer_mobile or 'N/A' }}</span></div>
+                <div><strong>Driver Mobile</strong> <span>{{ shipment.driver_mobile or 'N/A' }}</span></div>
+            </div>
+
+            <h4 style="margin-top: 2rem; margin-bottom: 1rem;">Items in Shipment ({{ shipment.total_pipes }} total)</h4>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Pipe ID</th>
+                        <th>Brand / Name</th>
+                        <th>Size</th>
+                        <th>Color</th>
+                        <th style="text-align: right;">Weight (kg)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>#{{ item.id }}</td>
+                        <td>{{ item.pipe_name }}</td>
+                        <td>{{ item.size }}</td>
+                        <td>{{ item.color }}</td>
+                        <td style="text-align: right;">{{ (item.weight_g) | round(3) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr style="font-weight: bold; background: #f8fafc; border-top: 2px solid #e2e8f0;">
+                        <td colspan="5" style="text-align: right;">Total Weight:</td>
+                        <td style="text-align: right;">{{ (shipment.total_weight) | round(2) }} kg</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('back-to-history').addEventListener('click', function(e) {
+        e.preventDefault();
+        sessionStorage.setItem('admin_active_tab', 'shipments');
+        window.location.href = '/admin';
+    });
+</script>
+{% endblock %}

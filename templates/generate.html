@@ -1,0 +1,240 @@
+{% extends "layout.html" %}
+{% block content %}
+<style>
+    .chip-container { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 2rem; }
+    .chip { padding: 12px 20px; border: 2px solid #e2e8f0; border-radius: 12px; cursor: pointer; font-weight: 600; background: white; color: #64748b; flex: 1; text-align: center; min-width: 80px; }
+    .chip.active { background: #eff6ff; color: var(--primary); border-color: var(--primary); }
+    .section-label { font-size: 0.85rem; text-transform: uppercase; color: #94a3b8; font-weight: 700; margin-bottom: 10px; }
+    
+    /* --- FIXED LABEL PREVIEW STYLE --- */
+    .preview-box { 
+        background: #f1f5f9; border-radius: 16px; padding: 2rem; 
+        display: flex; justify-content: center; align-items: center; 
+        min-height: 300px; border: 2px dashed #cbd5e1; 
+    }
+    
+    .label-visual {
+        width: 400px; 
+        height: 250px;
+        background: white; 
+        border: 3px solid #000;
+        padding: 15px; 
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        font-family: Arial, sans-serif;
+        display: grid;
+        grid-template-columns: 2fr 1fr; /* Text takes 2 parts, QR takes 1 part */
+        grid-template-rows: auto auto 1fr auto;
+        gap: 5px;
+        position: relative;
+    }
+
+    /* Left Side: Text Info */
+    .lbl-header { grid-column: 1 / 2; grid-row: 1 / 2; align-self: start; }
+    .lbl-brand { font-size: 26px; font-weight: 800; text-transform: uppercase; line-height: 1.1; word-wrap: break-word; }
+    .lbl-detail { font-size: 18px; color: #333; margin-top: 5px; font-weight: 600; }
+    
+    /* Right Side: QR Code (Fixed Zone) */
+    .lbl-qr-zone { 
+        grid-column: 2 / 3; 
+        grid-row: 1 / 3; 
+        justify-self: end;
+        width: 110px; 
+        height: 110px; 
+        border: 1px solid #eee; 
+        background: #fafafa;
+        display: flex; align-items: center; justify-content: center;
+    }
+    .lbl-qr-zone img { width: 100%; height: 100%; object-fit: contain; }
+
+    /* Center: Weight */
+    .lbl-weight-zone { 
+        grid-column: 1 / 3; 
+        grid-row: 3 / 4; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        font-size: 42px; 
+        font-weight: 900; 
+        color: #000;
+        border-top: 2px solid #eee;
+        border-bottom: 2px solid #eee;
+        margin: 10px 0;
+    }
+
+    /* Bottom: Meta Data */
+    .lbl-meta { 
+        grid-column: 1 / 3; 
+        grid-row: 4 / 5; 
+        font-size: 13px; 
+        color: #555; 
+        display: flex; 
+        justify-content: space-between;
+        align-items: flex-end;
+    }
+</style>
+
+<div class="grid">
+    <div class="card">
+        <h2 style="margin-bottom: 1.5rem;">New Label</h2>
+        <form id="labelForm">
+            <div class="section-label">Operator / Shift</div>
+            <div class="chip-container" id="group-operator">
+                <div class="chip active" onclick="select('operator', this, 'Shift-A')">Shift-A</div>
+                <div class="chip" onclick="select('operator', this, 'Shift-B')">Shift-B</div>
+                <div class="chip" onclick="select('operator', this, 'Night')">Night</div>
+            </div>
+            <input type="hidden" id="operator" value="Shift-A">
+
+            <div class="section-label">Brand / Name</div>
+            <div class="chip-container" id="group-name">
+                <div class="chip active" onclick="select('name', this, 'Gangotry')">Gangotry</div>
+                <div class="chip" onclick="select('name', this, 'UltraPlast')">UltraPlast</div>
+                <div class="chip" onclick="select('name', this, 'KissanGreen')">KissanGreen</div>
+                <div class="chip" onclick="select('name', this, 'Casing')">Casing</div>
+            </div>
+            <input type="hidden" id="pipe_name" value="Gangotry">
+
+            <div class="section-label">Pressure Class</div>
+            <div class="chip-container" id="group-pressure">
+                <div class="chip active" onclick="select('pressure', this, '4kgf')">4 Kgf</div>
+                <div class="chip" onclick="select('pressure', this, '6kgf')">6 Kgf</div>
+                <div class="chip" onclick="select('pressure', this, '10kgf')">10 Kgf</div>
+            </div>
+            <input type="hidden" id="pressure" value="4kgf">
+
+            <div class="section-label">Size (mm)</div>
+            <div class="chip-container" id="group-size">
+                <div class="chip active" onclick="select('size', this, '63mm')">63</div>
+                <div class="chip" onclick="select('size', this, '75mm')">75</div>
+                <div class="chip" onclick="select('size', this, '90mm')">90</div>
+                <div class="chip" onclick="select('size', this, '110mm')">110</div>
+                <div class="chip" onclick="select('size', this, '140mm')">140</div>
+                <div class="chip" onclick="select('size', this, '160mm')">160</div>
+                <div class="chip" onclick="select('size', this, '180mm')">180</div>
+                <div class="chip" onclick="select('size', this, '200mm')">200</div>
+            </div>
+            <input type="hidden" id="size" value="63mm">
+
+            <div class="section-label">Color</div>
+            <div class="chip-container" id="group-color">
+                <div class="chip active" onclick="select('color', this, 'Blue')">Blue</div>
+                <div class="chip" onclick="select('color', this, 'Grey')">Grey</div>
+            </div>
+            <input type="hidden" id="color" value="Blue">
+
+            <div class="section-label">Net Weight (Kg)</div>
+            <input type="number" id="weight_g" class="big-input" placeholder="0.000" step="0.001" required autofocus oninput="updatePreview()">
+            
+            <button type="submit" class="btn" style="margin-top: 1rem;">PRINT LABEL (ENTER)</button>
+        </form>
+    </div>
+
+    <div class="card" style="text-align: center;">
+        <h3>Live Preview</h3>
+        <div class="preview-box" id="previewArea">
+            </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script>
+    // Initial Render
+    window.onload = function() { updatePreview(); }
+
+    function select(type, el, val) {
+        // Handle name specifically or generic ID
+        let inputId = (type === 'name') ? 'pipe_name' : type;
+        document.getElementById(inputId).value = val;
+        
+        let container = document.getElementById('group-'+type);
+        for(let c of container.getElementsByClassName('chip')) c.classList.remove('active');
+        el.classList.add('active');
+        
+        updatePreview();
+        if(type !== 'weight') document.getElementById('weight_g').focus();
+    }
+
+    // --- LIVE PREVIEW LOGIC ---
+    function updatePreview(qrBase64 = null) {
+        const brand = document.getElementById('pipe_name').value;
+        const size = document.getElementById('size').value;
+        const color = document.getElementById('color').value;
+        const op = document.getElementById('operator').value;
+        const pressure = document.getElementById('pressure').value; // Get Pressure
+        const weight = document.getElementById('weight_g').value || '0.000';
+        
+        let qrHtml = qrBase64 
+            ? `<img src="${qrBase64}">` 
+            : `<span style="color:#ccc; font-size:12px;">QR Code</span>`;
+
+        const html = `
+        <div class="label-visual">
+            <div class="lbl-header">
+                <div class="lbl-brand">${brand}</div>
+                <div class="lbl-detail">${size} | ${color}</div>
+            </div>
+            <div class="lbl-qr-zone" id="previewQr">${qrHtml}</div>
+            <div class="lbl-weight-zone">${weight} Kg</div>
+            <div class="lbl-meta">
+                <span>Op: ${op} | <b>${pressure}</b></span>
+                <span>Date: ${new Date().toLocaleDateString()}</span>
+            </div>
+        </div>`;
+        
+        document.getElementById('previewArea').innerHTML = html;
+    }
+
+    // --- SUBMISSION ---
+    const form = document.getElementById('labelForm');
+    const btn = form.querySelector('button');
+    let isProcessing = false;
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if(isProcessing) return; 
+
+        let wt = parseFloat(document.getElementById('weight_g').value);
+        if (isNaN(wt) || wt <= 0) { showToast("Enter Weight!", true); return; }
+
+        // LOCK
+        isProcessing = true;
+        btn.disabled = true;
+        btn.innerText = "Printing...";
+        btn.style.opacity = "0.7";
+
+        let payload = {
+            operator: document.getElementById('operator').value,
+            pipe_name: document.getElementById('pipe_name').value,
+            size: document.getElementById('size').value,
+            color: document.getElementById('color').value,
+            pressure: document.getElementById('pressure').value, // Add Pressure here
+            weight_g: wt.toFixed(3)
+        };
+
+        try {
+            const res = await fetch('/api/labels', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+            const data = await res.json();
+            if (data.success) {
+                updatePreview(data.qr_image);
+                showToast("Printing...");
+                
+                // --- CRITICAL CHANGE: Pass pressure AGAIN to print route ---
+                // Because we aren't saving it to DB, the print route needs to know it from here.
+                let printPayload = { id: data.label.id, pressure: payload.pressure };
+
+                const pRes = await fetch('/api/print', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(printPayload) });
+                if ((await pRes.json()).success) showToast("Printed!");
+            }
+        } catch (e) { showToast("Error", true); }
+        finally {
+            isProcessing = false;
+            btn.disabled = false;
+            btn.innerText = "PRINT LABEL (ENTER)";
+            btn.style.opacity = "1";
+            document.getElementById('weight_g').value = '';
+            document.getElementById('weight_g').focus();
+        }
+    });
+</script>
+{% endblock %}
+{% endblock %}

@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dispatch Hub</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #f4f7f9;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-light: #64748b;
+            --border-color: #e2e8f0;
+            --primary: #0d6efd;
+            --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
+        }
+        body { 
+            background-color: var(--bg-color); 
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        .header {
+            background: var(--card-bg);
+            padding: 1rem 2rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        .header h1 { font-size: 1.5rem; font-weight: 700; margin: 0; }
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 1.5rem;
+        }
+        .card-header { background: #f8fafc; padding: 1rem 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+        .card-header h3, .card-body h4 { font-size: 1.1rem; font-weight: 600; margin: 0; }
+        .card-body { padding: 1.5rem; }
+        .card-footer { background: #f8fafc; padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); text-align: right; }
+
+        .kpi-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1.5rem 0; }
+        .kpi-card { background: #f8fafc; padding: 1rem; border-radius: 0.5rem; border-left: 4px solid var(--primary); }
+        .kpi-card h5 { font-size: 0.8rem; color: var(--text-light); text-transform: uppercase; margin: 0; }
+        .kpi-card .val { font-size: 1.75rem; font-weight: 700; }
+
+        #scan-input { font-size: 1.5rem; text-align: center; }
+        #scan-status { min-height: 24px; font-size: 1rem; font-weight: 500; text-align: center; margin-top: 1rem !important; }
+
+        .table-hover tbody tr { cursor: pointer; }
+        .table th { color: var(--text-light); font-weight: 600; }
+        .table td { vertical-align: middle; }
+
+        .shipment-info {
+            background: #f8fafc;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
+            border: 2px dashed #d1d5db; /* Dashed border for ticket style */
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1rem;
+        }
+        .shipment-info strong { color: var(--text-light); display: block; font-size: 0.8rem; margin-bottom: 2px; }
+
+        .color-dot {
+            display: inline-block; width: 12px; height: 12px; border-radius: 50%;
+            margin-right: 8px; vertical-align: middle;
+        }
+        .btn-action { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 1.2rem; padding: 0 5px; }
+        .btn-action:hover { color: #b91c1c; }
+
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
+        .form-grid .full-width { grid-column: 1 / -1; }
+
+
+        /* Print-specific styles */
+        @media print {
+            body * { visibility: hidden; }
+            #print-area, #print-area * { visibility: visible; }
+            #print-area { position: absolute; left: 0; top: 0; width: 100%; }
+            .no-print { display: none !important; }
+            .card { box-shadow: none; border: none; }
+            .table-bordered { border: 1px solid #dee2e6 !important; }
+            .table-bordered th, .table-bordered td { border: 1px solid #dee2e6 !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header no-print">
+        <h1>🚚 Dispatch Hub</h1>
+        <a href="/admin" class="btn btn-outline-secondary">← Back to Admin Dashboard</a>
+    </div>
+
+    <div class="container-fluid" style="max-width: 1800px;">
+        <div class="row">
+            <!-- Left Column: Dispatch Sheet -->
+            <div class="col-lg-9">
+                <div class="card" id="print-area">
+                    <div class="card-header">
+                        <h3>Current Shipment</h3>
+                        <div class="actions no-print">
+                            <button id="print-btn" class="btn btn-sm btn-outline-secondary">🖨️ Print</button>
+                            <button id="clear-btn" class="btn btn-sm btn-outline-danger">🗑️ Clear All</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="shipment-info">
+                            <div style="grid-column: 1 / -1;"><strong>Customer</strong> <span id="print-customer">Not Set</span></div>
+                            <div style="grid-column: 1 / -1;"><strong>Address</strong> <span id="print-address">Not Set</span></div>
+                            <div><strong>Customer Mobile</strong> <span id="print-customer-mobile">Not Set</span></div>
+                            <div><strong>Driver Mobile</strong> <span id="print-driver-mobile">Not Set</span></div>
+                            <div><strong>Vehicle No.</strong> <span id="print-vehicle">Not Set</span></div>
+                            <div><strong>Challan No.</strong> <span id="print-challan">Not Set</span></div>
+                            <div><strong>Date</strong> <span id="print-date"></span></div>
+                        </div>
+
+                        <div class="kpi-row">
+                            <div class="kpi-card" style="border-color: #0d6efd;">
+                                <h5>Total Pipes</h5>
+                                <div class="val" id="total-pipes">0</div>
+                            </div>
+                            <div class="kpi-card" style="border-color: #6c757d;">
+                                <h5>Total Weight (kg)</h5>
+                                <div class="val" id="total-weight">0.00</div>
+                            </div>
+                        </div>
+
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Brand / Name</th>
+                                    <th>Size</th>
+                                    <th>Color</th>
+                                    <th>Quantity</th>
+                                    <th class="text-end">Sub Wt. (kg)</th>
+                                    <th class="text-center no-print">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dispatch-table-body">
+                                <!-- Grouped items will be populated here by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="card-footer no-print">
+                        <button id="dispatch-btn" class="btn btn-success btn-lg">✓ Finalize & Dispatch</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Controls & Scanner -->
+            <div class="col-lg-3">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h4>1. Scan Items</h4>
+                        <input type="text" id="scan-input" class="form-control form-control-lg" placeholder="Scan QR Code here...">
+                        <div id="scan-status" class="form-text status-message mt-2"></div>
+                   </div>
+                </div>
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h4>2. Shipment Details</h4>
+                        <form id="shipment-meta-form">
+                            <div class="form-grid">
+                                <div class="mb-3 full-width">
+                                    <label for="customer-name" class="form-label">Customer Name</label>
+                                    <input type="text" class="form-control" id="customer-name" required>
+                                </div>
+                                <div class="mb-3 full-width">
+                                    <label for="challan-no" class="form-label">Challan Number</label>
+                                    <input type="text" class="form-control" id="challan-no" required maxlength="4">
+                                </div>
+                                <div class="mb-3 full-width">
+                                    <label for="customer-address" class="form-label">Customer Address</label>
+                                    <textarea class="form-control" id="customer-address" rows="2"></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="customer-mobile" class="form-label">Customer Mobile</label>
+                                    <input type="tel" class="form-control" id="customer-mobile" maxlength="10" pattern="\d{10}" title="Must be 10 digits">
+                                </div>
+                                 <div class="mb-3">
+                                    <label for="driver-mobile" class="form-label">Driver Mobile</label>
+                                    <input type="tel" class="form-control" id="driver-mobile" maxlength="10" pattern="\d{10}" title="Must be 10 digits">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="vehicle-no" class="form-label">Vehicle No.</label>
+                                    <input type="text" class="form-control" id="vehicle-no" required maxlength="10">
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Details Modal -->
+    <div class="modal fade" id="detailsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="detailsModalTitle">Item Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="list-group" id="detailsModalList">
+                        <!-- Individual pipes will be listed here -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const scanInput = document.getElementById('scan-input');
+        const scanStatus = document.getElementById('scan-status');
+        const tableBody = document.getElementById('dispatch-table-body');
+        const totalPipesEl = document.getElementById('total-pipes');
+        const totalWeightEl = document.getElementById('total-weight');
+        const dispatchBtn = document.getElementById('dispatch-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        const printBtn = document.getElementById('print-btn');
+
+        const metaForm = document.getElementById('shipment-meta-form');
+        const customerInput = document.getElementById('customer-name');
+        const vehicleInput = document.getElementById('vehicle-no');
+        const customerAddressInput = document.getElementById('customer-address');
+        const customerMobileInput = document.getElementById('customer-mobile');
+        const driverMobileInput = document.getElementById('driver-mobile');
+        const challanNoInput = document.getElementById('challan-no');
+
+        const detailsModal = new bootstrap.Modal(document.getElementById('detailsModal'));
+        const detailsModalTitle = document.getElementById('detailsModalTitle');
+        const detailsModalList = document.getElementById('detailsModalList');
+
+        let scannedItems = []; // Array of full pipe objects
+        let scannedIds = new Set(); // Set of IDs for quick lookup
+
+        // --- Persistence Logic ---
+        function saveState() {
+            const state = {
+                meta: {
+                    customer: customerInput.value,
+                    address: customerAddressInput.value,
+                    customer_mobile: customerMobileInput.value,
+                    driver_mobile: driverMobileInput.value,
+                    challan_no: challanNoInput.value,
+                    vehicle: vehicleInput.value,
+                },
+                items: scannedItems
+            };
+            localStorage.setItem('dispatchSheet', JSON.stringify(state));
+        }
+
+        function loadState() {
+            const state = JSON.parse(localStorage.getItem('dispatchSheet'));
+            if (state) {
+                customerInput.value = state.meta.customer || '';
+                customerAddressInput.value = state.meta.address || '';
+                customerMobileInput.value = state.meta.customer_mobile || '';
+                driverMobileInput.value = state.meta.driver_mobile || '';
+                challanNoInput.value = state.meta.challan_no || '';
+                vehicleInput.value = state.meta.vehicle || '';
+                scannedItems = state.items || [];
+                scannedItems.forEach(item => scannedIds.add(item.id));
+                renderTable();
+            }
+        }
+
+        // --- Core Logic ---
+        function renderTable() {
+            const grouped = {};
+            let totalWeight = 0;
+
+            scannedItems.forEach(item => {
+                const key = `${item.pipe_name}|${item.size}|${item.color}`;
+                if (!grouped[key]) {
+                    grouped[key] = {
+                        pipe_name: item.pipe_name,
+                        size: item.size,
+                        color: item.color,
+                        quantity: 0,
+                        total_weight_g: 0,
+                        items: []
+                    };
+                }
+                grouped[key].quantity++;
+                grouped[key].items.push(item);
+                grouped[key].total_weight_g += parseFloat(item.weight_g || 0);
+                totalWeight += parseFloat(item.weight_g || 0);
+            });
+
+            tableBody.innerHTML = '';
+            let index = 1;
+            for (const key in grouped) {
+                const group = grouped[key];
+                const colorDot = `<span class="color-dot" style="background-color: ${group.color.toLowerCase() === 'blue' ? '#2563eb' : '#64748b'};"></span>`;
+                const row = document.createElement('tr');
+                row.setAttribute('data-group-key', key);
+                row.innerHTML = `
+                    <td>${index++}</td>
+                    <td>${group.pipe_name}</td>
+                    <td>${group.size}</td>
+                    <td>${colorDot} ${group.color}</td>
+                    <td><strong>${group.quantity}</strong></td>
+                    <td class="text-end">${(group.total_weight_g).toFixed(2)}</td>
+                    <td class="text-center no-print">
+                        <button class="btn-action remove-group-btn" title="Remove all ${group.pipe_name} ${group.size}">🗑️</button>
+                    </td>
+                `;
+                row.addEventListener('click', () => showDetails(key, grouped));
+                row.querySelector('.remove-group-btn').addEventListener('click', (e) => {
+                    e.stopPropagation(); // prevent row click which opens modal
+                    removeGroup(key, group);
+                });
+                tableBody.appendChild(row);
+            }
+
+            totalPipesEl.textContent = scannedItems.length;
+            totalWeightEl.textContent = (totalWeight).toFixed(2);
+            updatePrintableHeader();
+        }
+
+        function showDetails(groupKey, groupedData) {
+            const group = groupedData[groupKey];
+            detailsModalTitle.textContent = `Details for: ${group.pipe_name} ${group.size} (${group.color})`;
+            detailsModalList.innerHTML = '';
+            group.items.forEach(item => {
+                const li = document.createElement('li');
+                li.className = 'list-group-item';
+                li.innerHTML = `
+                    <span>ID: ${item.id} | Weight: ${(item.weight_g).toFixed(3)} kg</span>
+                    <button class="btn btn-sm btn-outline-danger no-print" data-item-id="${item.id}">Remove</button>
+                `;
+                li.querySelector('button').addEventListener('click', (e) => {
+                    e.stopPropagation(); // prevent row click
+                    removeItem(item.id);
+                    detailsModal.hide();
+                });
+                detailsModalList.appendChild(li);
+            });
+            detailsModal.show();
+        }
+
+        function removeItem(itemId) {
+            scannedItems = scannedItems.filter(item => item.id !== itemId);
+            scannedIds.delete(itemId);
+            setStatus(`Removed pipe ID ${itemId}.`, 'info');
+            saveState();
+            renderTable();
+        }
+
+        function removeGroup(groupKey, groupData) {
+            if (confirm(`Are you sure you want to remove all ${groupData.quantity} items of ${groupData.pipe_name} ${groupData.size}?`)) {
+                const idsToRemove = new Set(groupData.items.map(item => item.id));
+                
+                scannedItems = scannedItems.filter(item => !idsToRemove.has(item.id));
+                idsToRemove.forEach(id => scannedIds.delete(id));
+                
+                setStatus(`Removed ${idsToRemove.size} items.`, 'info');
+                saveState();
+                renderTable();
+            }
+        }
+
+        function setStatus(message, type = 'success') {
+            scanStatus.textContent = message;
+            scanStatus.className = `form-text status-message mt-2 text-${type}`;
+            setTimeout(() => scanStatus.textContent = '', 4000);
+        }
+
+        async function handleScan(qrData) {
+            let pipeId = null;
+            const trimmedData = qrData.trim();
+
+            // 1. Try to parse as a full JSON object (standard QR code)
+            try {
+                const pipeInfo = JSON.parse(trimmedData);
+                if (pipeInfo && pipeInfo.id) {
+                    pipeId = pipeInfo.id;
+                }
+            } catch (e) {
+                // Not a valid JSON object, will try other methods
+            }
+
+            // 2. If not JSON, check if it's a plain number (for manual entry)
+            if (pipeId === null) {
+                const numericId = parseInt(trimmedData, 10);
+                if (!isNaN(numericId) && String(numericId) === trimmedData) {
+                    pipeId = numericId;
+                }
+            }
+
+            // 3. If still no ID, try to find an ID pattern like {"id": 29} from a scanner
+            if (pipeId === null) {
+                const match = trimmedData.match(/"id":\s*(\d+)/);
+                if (match && match[1]) {
+                    pipeId = parseInt(match[1], 10);
+                }
+            }
+
+            // If we couldn't find an ID by any method, it's invalid.
+            if (pipeId === null) {
+                setStatus("Invalid QR code or ID format.", "danger");
+                return;
+            }
+
+            // --- Proceed with the found pipeId ---
+            if (scannedIds.has(pipeId)) {
+                setStatus(`Pipe ID ${pipeId} is already in this sheet.`, "warning");
+                return;
+            }
+            try {
+                const response = await fetch(`/api/labels/${pipeId}`);
+                if (!response.ok) throw new Error(`Pipe ID ${pipeId} not found in database.`);
+                
+                const item = await response.json();
+
+                if (item.dispatched_at) {
+                    setStatus(`Error: Pipe ID ${item.id} has already been dispatched on ${new Date(item.dispatched_at).toLocaleDateString()}.`, "danger");
+                    return;
+                }
+
+                scannedItems.push(item);
+                scannedIds.add(item.id); // Use item.id from the response to be safe
+                setStatus(`Added: ${item.pipe_name} ${item.size}`, 'success');
+                saveState();
+                renderTable();
+
+            } catch (error) {
+                setStatus(error.message, 'danger');
+            }
+        }
+
+        // --- Event Listeners ---
+        scanInput.addEventListener('paste', (e) => {
+            e.preventDefault();
+            const text = e.clipboardData.getData('text/plain');
+            scanInput.value = '';
+            handleScan(text);
+        });
+
+        scanInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (scanInput.value.trim()) {
+                    handleScan(scanInput.value.trim());
+                    scanInput.value = '';
+                }
+            }
+        });
+
+        metaForm.addEventListener('input', () => {
+            saveState();
+            updatePrintableHeader();
+        });
+
+        clearBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to clear the entire dispatch sheet?')) {
+                scannedItems = [];
+                scannedIds.clear();
+                localStorage.removeItem('dispatchSheet');
+                renderTable();
+                setStatus('Sheet cleared.', 'info');
+            }
+        });
+
+        dispatchBtn.addEventListener('click', async () => {
+            if (!customerInput.value || !vehicleInput.value || !challanNoInput.value) {
+                alert('Please fill in Customer Name, Vehicle No., and Challan Number before dispatching.');
+                return;
+            }
+            if (scannedItems.length === 0) {
+                alert('Cannot dispatch an empty sheet. Please scan items first.');
+                return;
+            }
+
+            if (!confirm(`Dispatch ${scannedItems.length} pipes to ${customerInput.value}? This action cannot be undone.`)) {
+                return;
+            }
+
+            const payload = {
+                meta: {
+                    customer: customerInput.value,
+                    address: customerAddressInput.value,
+                    vehicle: vehicleInput.value,
+                    customer_mobile: customerMobileInput.value,
+                    driver_mobile: driverMobileInput.value,
+                    challan_no: challanNoInput.value
+                },
+                items: scannedItems
+            };
+
+            try {
+                const response = await fetch('/api/shipments/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                if (!response.ok || !result.success) throw new Error(result.message || 'Dispatch failed.');
+
+                alert(`Success! ${result.message}`);
+                // Clear state after successful dispatch
+                scannedItems = [];
+                scannedIds.clear();
+                localStorage.removeItem('dispatchSheet');
+
+                // Clear the form inputs first
+                customerInput.value = '';
+                vehicleInput.value = '';
+                customerMobileInput.value = '';
+                driverMobileInput.value = '';
+                challanNoInput.value = '';
+                customerAddressInput.value = '';
+
+                // Now re-render the table and header, which will use the cleared values
+                renderTable();
+                // And save the new empty state
+                saveState();
+
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        });
+
+        function updatePrintableHeader() {
+            document.getElementById('print-customer').textContent = customerInput.value || 'N/A';
+            document.getElementById('print-address').textContent = customerAddressInput.value || 'N/A';
+            document.getElementById('print-customer-mobile').textContent = customerMobileInput.value || 'N/A';
+            document.getElementById('print-driver-mobile').textContent = driverMobileInput.value || 'N/A';
+            document.getElementById('print-challan').textContent = challanNoInput.value || 'N/A';
+            document.getElementById('print-vehicle').textContent = vehicleInput.value || 'N/A';
+            document.getElementById('print-date').textContent = new Date().toLocaleString();
+        }
+
+        printBtn.addEventListener('click', () => {
+            updatePrintableHeader();
+            window.print();
+        });
+
+        // --- Initial Load ---
+        loadState();
+        scanInput.focus();
+    });
+    </script>
+</body>
+</html>

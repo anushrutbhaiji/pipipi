@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PVC Factory Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Modern Palette */
+            --primary: #2563eb;       /* Bright Royal Blue */
+            --primary-dark: #1d4ed8;
+            --secondary: #64748b;     /* Slate Grey */
+            --success: #10b981;       /* Emerald */
+            --danger: #ef4444;        /* Red */
+            --warning: #f59e0b;       /* Amber */
+            --bg-body: #f8fafc;       /* Very Light Blue-Grey */
+            --bg-card: #ffffff;
+            --text-main: #0f172a;     /* Deep Navy */
+            --text-light: #64748b;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+            --radius: 16px;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* --- Navbar --- */
+        .navbar {
+            background: var(--bg-card);
+            padding: 1rem 2rem;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .brand {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary), #3b82f6);
+            /* --- FIXED: Added standard property here --- */
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+        .nav-links { display: flex; gap: 1rem; }
+        .nav-item {
+            text-decoration: none;
+            color: var(--text-light);
+            font-weight: 600;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        .nav-item:hover { background: #eff6ff; color: var(--primary); }
+        .nav-item.active { background: #eff6ff; color: var(--primary); }
+
+        /* --- Layout --- */
+        .container {
+            max-width: 1100px;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+        }
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 2rem;
+            box-shadow: var(--shadow-md);
+            border: 1px solid #f1f5f9;
+            transition: transform 0.2s;
+            margin-bottom: 2rem;
+        }
+        /* .card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); } */
+
+        h2, h3 { margin-top: 0; color: var(--text-main); letter-spacing: -0.5px; }
+
+        /* --- Forms & Buttons --- */
+        label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-light); font-size: 0.9rem; }
+        
+        input, select {
+            width: 100%;
+            padding: 0.9rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 1rem;
+            margin-bottom: 1.2rem;
+            box-sizing: border-box;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1); }
+        
+        .big-input { 
+            font-size: 2rem; 
+            padding: 1rem; 
+            font-weight: 700; 
+            color: var(--primary); 
+            text-align: center;
+            letter-spacing: 1px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            font-size: 1rem;
+            cursor: pointer;
+            font-weight: 600;
+            width: 100%;
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.4); }
+        .btn:active { transform: translateY(0); }
+        .btn-outline { background: white; border: 2px solid #e2e8f0; color: var(--text-main); box-shadow: none; }
+        .btn-outline:hover { border-color: var(--text-main); background: #f8fafc; }
+
+        .grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 2rem; }
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+
+        /* --- Toast --- */
+        #toast {
+            visibility: hidden;
+            min-width: 300px;
+            background-color: var(--text-main);
+            color: #fff;
+            text-align: center;
+            border-radius: 50px;
+            padding: 16px;
+            position: fixed;
+            z-index: 1000;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            box-shadow: var(--shadow-lg);
+            font-weight: 500;
+        }
+        #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="brand">🏭 PVC PRO</div>
+        <div class="nav-links">
+            <a href="/" class="nav-item {% if request.path == '/' %}active{% endif %}">Generate</a>
+            <a href="/scan" class="nav-item {% if request.path == '/scan' %}active{% endif %}">Scan</a>
+            <a href="/dispatch" class="nav-item {% if request.path == '/dispatch' %}active{% endif %}">Dispatch Hub</a>
+            <a href="/admin" class="nav-item {% if request.path == '/admin' %}active{% endif %}">Admin</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+
+    <div id="toast">Ready</div>
+
+    <script>
+        function showToast(msg, isError = false) {
+            const x = document.getElementById("toast");
+            x.textContent = msg;
+            x.style.backgroundColor = isError ? "#ef4444" : "#10b981";
+            x.className = "show";
+            setTimeout(() => { x.className = x.className.replace("show", ""); }, 3000);
+        }
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

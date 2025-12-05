@@ -1,0 +1,468 @@
+{% extends "layout.html" %}
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+    /* --- DASHBOARD STYLES --- */
+    .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+    .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .kpi-card { background: white; padding: 1.5rem; border-radius: 12px; box-shadow: var(--shadow-sm); border-left: 5px solid #ccc; }
+    .kpi-card h4 { margin: 0; color: #64748b; font-size: 0.85rem; text-transform: uppercase; }
+    .kpi-card .val { font-size: 2rem; font-weight: 800; color: #1e293b; margin-top: 5px; }
+    
+    .nav-tabs { display: flex; gap: 10px; margin-bottom: 1.5rem; border-bottom: 2px solid #e2e8f0; }
+    .tab-btn { padding: 10px 20px; background: none; border: none; font-weight: 600; color: #64748b; cursor: pointer; border-bottom: 3px solid transparent; font-size: 1rem; }
+    .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .tab-btn:hover { color: var(--text-main); }
+
+    .filter-bar { background: white; padding: 1.5rem; border-radius: 12px; box-shadow: var(--shadow-md); margin-bottom: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end; }
+    .filter-group { display: flex; flex-direction: column; flex: 1; min-width: 130px; }
+    .filter-group label { font-size: 0.8rem; margin-bottom: 5px; }
+    .filter-group select, .filter-group input { margin-bottom: 0; padding: 8px; font-size: 0.9rem; }
+    
+    .data-table-container { background: white; border-radius: 12px; box-shadow: var(--shadow-md); overflow: hidden; }
+    .table-responsive { overflow-x: auto; max-height: 600px; }
+    table { width: 100%; border-collapse: collapse; }
+    th { position: sticky; top: 0; background: #f8fafc; z-index: 10; text-align: left; padding: 12px; font-size: 0.85rem; color: #64748b; border-bottom: 2px solid #e2e8f0; }
+    td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; color: #334155; }
+    tr:hover { background-color: #f8fafc; }
+
+    /* --- INVENTORY STATUS BADGES --- */
+    .status-stock { background: #dbeafe; color: #1e40af; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; }
+    .status-dispatch { background: #dcfce7; color: #166534; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; }
+    
+    /* --- SUMMARY BADGES --- */
+    .status-badge { padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; display: inline-block; min-width: 60px; text-align: center;}
+    .bg-red { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+    .bg-blue { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+    .bg-green { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+
+    /* --- PICTORIAL PIPE STYLES --- */
+    .brand-shelf { margin-bottom: 2rem; background: #fff; padding: 15px; border-radius: 12px; box-shadow: var(--shadow-sm); }
+    .brand-title { font-size: 1.1rem; font-weight: 800; color: #334155; margin-bottom: 15px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; display: flex; justify-content: space-between;}
+    .pipe-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 15px; }
+    
+    .pipe-card { 
+        background: #f8fafc; 
+        border: 1px solid #e2e8f0; 
+        border-radius: 12px; 
+        padding: 15px 10px; 
+        text-align: center; 
+        transition: all 0.2s; 
+        position: relative; 
+        cursor: pointer; 
+    }
+    .pipe-card:hover { transform: translateY(-3px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border-color: var(--primary); background: white; }
+    
+    .pipe-visual { 
+        margin: 0 auto 10px auto; 
+        border-radius: 50%; 
+        border-style: solid; 
+        background: white;
+        display: flex; align-items: center; justify-content: center;
+        font-weight: 800; color: #334155;
+        box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
+    }
+    
+    .low-stock-glow { animation: pulse-red 2s infinite; border-color: #ef4444 !important; color: #ef4444; }
+    @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+
+    .section { display: none; }
+    .section.active { display: block; animation: fadeIn 0.3s; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
+</style>
+
+<div id="loginOverlay" style="position: fixed; inset: 0; background: #f8fafc; z-index: 9999; display: flex; align-items: center; justify-content: center;">
+    <div class="card" style="width: 350px; text-align: center;">
+        <h2>🔐 Manager Login</h2>
+        <input type="password" id="adminPass" placeholder="Enter Password">
+        <button class="btn" onclick="authenticate()">Access Dashboard</button>
+    </div>
+</div>
+
+<div id="mainDashboard" style="display: none;">
+    
+    <div class="dashboard-header">
+        <div><h2 style="margin: 0;">🏭 Factory Manager</h2><small style="color: #64748b;">Inventory & Dispatch System</small></div>
+        <div style="display: flex; gap: 10px;">
+            <a href="/dispatch" class="btn" style="width: auto; background: #10b981;" target="_blank">🚚 Go to Dispatch Hub</a>
+            <button class="btn" style="width: auto; background: #475569;" onclick="downloadBackup()">💾 Backup DB</button>
+            <button class="btn" style="width: auto; background: #ef4444;" onclick="cleanData()">🗑️ Cleanup Old</button>
+        </div>
+    </div>
+
+    <div class="kpi-row">
+        <div class="kpi-card" style="border-color: #2563eb;"><h4>Total Production</h4><div class="val" id="kpi-total">0</div></div>
+        <div class="kpi-card" style="border-color: #10b981;"><h4>In Stock</h4><div class="val" id="kpi-stock">0</div></div>
+        <div class="kpi-card" style="border-color: #f59e0b;"><h4>Dispatched</h4><div class="val" id="kpi-dispatch">0</div></div>
+    </div>
+
+    <div class="nav-tabs">
+        <button class="tab-btn active" onclick="showTab('inventory')">📋 Master Inventory</button>
+        <button class="tab-btn" onclick="showTab('reports')">📑 Reports & Sheets</button>
+        <button class="tab-btn" onclick="showTab('shipments')">📜 Shipment History</button>
+        <button class="tab-btn" onclick="showTab('summary')">📦 Stock Visuals</button>
+        <button class="tab-btn" onclick="showTab('analytics')">📈 Analytics</button>
+    </div>
+
+    <div id="tab-inventory" class="section active">{% include 'tabs/inventory.html' %}</div>
+    <div id="tab-reports" class="section">{% include 'tabs/reports.html' %}</div>
+    <div id="tab-shipments" class="section"></div>
+    <div id="tab-summary" class="section">{% include 'tabs/summary.html' %}</div>
+    <div id="tab-analytics" class="section">{% include 'tabs/analytics.html' %}</div>
+</div>
+
+<script>
+    let AUTH_HEADER = {};
+    let pollingInterval = null;
+    let latestStockData = []; 
+    let currentReportType = '';
+    
+    document.addEventListener("DOMContentLoaded", () => {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('f_start').value = today;
+        document.getElementById('rep_date').value = today;
+
+        if(sessionStorage.getItem('admin_token')) {
+            authenticate(true);
+        }
+    });
+
+    async function authenticate(isAuto = false) {
+        let headers = {};
+        if(isAuto) {
+            headers = { 'Authorization': 'Basic ' + sessionStorage.getItem('admin_token') };
+        } else {
+            const pass = document.getElementById('adminPass').value;
+            headers = { 'Authorization': 'Basic ' + btoa("admin:" + pass) };
+        }
+
+        try {
+            const res = await fetch('/api/stats_summary', { headers });
+            if (res.status === 401) { if(!isAuto) showToast("Wrong Password!", true); return; }
+            
+            if(!isAuto) {
+                const pass = document.getElementById('adminPass').value;
+                sessionStorage.setItem('admin_token', btoa("admin:" + pass));
+            }
+
+            AUTH_HEADER = headers;
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('mainDashboard').style.display = 'block';
+            
+            const data = await res.json();
+            updateDashboardUI(data);
+
+            const requestedTab = sessionStorage.getItem('admin_active_tab');
+            if (requestedTab) {
+                showTab(requestedTab);
+                sessionStorage.removeItem('admin_active_tab');
+            } else {
+                checkUrlFilters();
+            }
+            startLiveUpdates();
+        } catch(e) { console.error(e); if(!isAuto) showToast("Connection Error", true); }
+    }
+
+    function checkUrlFilters() {
+        const params = new URLSearchParams(window.location.search);
+        if(params.has('brand')) {
+            showTab('inventory');
+            document.getElementById('f_name').value = params.get('brand') || '';
+            document.getElementById('f_size').value = params.get('size') || '';
+            document.getElementById('f_color').value = params.get('color') || '';
+            document.getElementById('f_status').value = 'stock';
+            fetchInventory();
+        } else {
+            fetchInventory();
+        }
+    }
+
+    function goToInventory(brand, size, color) {
+        const params = new URLSearchParams({ brand: brand, size: size, color: color });
+        // Use window.location to stay in same tab if preferred, or open
+        window.location.href = `?${params.toString()}`;
+    }
+
+    function startLiveUpdates() {
+        if(pollingInterval) clearInterval(pollingInterval);
+        pollingInterval = setInterval(async () => {
+            if(document.hidden) return; 
+            try {
+                const res = await fetch('/api/stats_summary', { headers: AUTH_HEADER });
+                if(res.ok) {
+                    const data = await res.json();
+                    updateDashboardUI(data);
+                }
+            } catch(e) { console.log("Silent refresh failed"); }
+        }, 10000); 
+    }
+
+    function showTab(tabId) {
+        // Hide all sections, then show the target one
+        document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+        document.getElementById('tab-' + tabId).classList.add('active');
+
+        // Deactivate all tab buttons, then activate the clicked one
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        document.querySelector(`.tab-btn[onclick="showTab('${tabId}')"]`).classList.add('active');
+
+        // If the shipments tab is clicked, fetch its data
+        if (tabId === 'shipments') fetchShipmentHistory();
+    }
+
+    // --- MAIN DASHBOARD UPDATE LOGIC ---
+    function updateDashboardUI(data) {
+        document.getElementById('kpi-total').innerText = data.total;
+        document.getElementById('kpi-stock').innerText = data.stock;
+        document.getElementById('kpi-dispatch').innerText = data.dispatched;
+        
+        latestStockData = data.stock_summary;
+
+        const container = document.getElementById('visualWarehouse');
+        if(container) {
+            container.innerHTML = '';
+            let brands = {};
+            data.stock_summary.forEach(row => {
+                if(!brands[row.pipe_name]) brands[row.pipe_name] = [];
+                brands[row.pipe_name].push(row);
+            });
+
+            for(let [brand, items] of Object.entries(brands)) {
+                items.sort((a,b) => parseInt(a.size) - parseInt(b.size));
+                let shelfHtml = `<div class="brand-shelf"><div class="brand-title"><span>🏭 ${brand}</span> <span style="font-size:0.9rem; opacity:0.6;">${items.length} Variants</span></div><div class="pipe-grid">`;
+                items.forEach(item => {
+                    let sizeInt = parseInt(item.size);
+                    let visualSize = 40 + (sizeInt / 4); 
+                    if(visualSize > 90) visualSize = 90; 
+                    let borderColor = item.color.toLowerCase().includes('blue') ? '#2563eb' : '#64748b';
+                    let isLow = item.stock < 20;
+                    let glowClass = isLow ? 'low-stock-glow' : '';
+                    shelfHtml += `
+                    <div class="pipe-card" onclick="goToInventory('${item.pipe_name}', '${item.size}', '${item.color}')">
+                        <div class="pipe-visual ${glowClass}" style="width:${visualSize}px; height:${visualSize}px; border-width:6px; border-color:${borderColor};">
+                            ${item.stock}
+                        </div>
+                        <div style="font-weight:700; font-size:0.9rem; color:#334155;">${item.size}</div>
+                        <div style="font-size:0.8rem; font-weight:700; color:${borderColor};">${item.color}</div>
+                        ${isLow ? '<div style="color:red; font-size:0.7rem; font-weight:bold; margin-top:5px;">⚠️ LOW</div>' : ''}
+                    </div>`;
+                });
+                shelfHtml += `</div></div>`;
+                container.innerHTML += shelfHtml;
+            }
+        }
+
+        const sBody = document.getElementById('summaryBody');
+        if(sBody) {
+            sBody.innerHTML = '';
+            data.stock_summary.forEach(row => {
+                let badgeClass = row.stock < 20 ? 'bg-red' : 'bg-blue';
+                let statusText = row.stock === 0 ? 'Empty' : (row.stock < 20 ? 'Low' : 'OK');
+                sBody.innerHTML += `<tr><td><b>${row.pipe_name}</b></td><td>${row.size}</td><td>${row.color}</td><td style="font-weight:bold;">${row.stock}</td><td><span class="status-badge ${badgeClass}">${statusText}</span></td></tr>`;
+            });
+        }
+        
+        // --- ANALYTICS CHART UPDATE ---
+        if(window.myChart) window.myChart.destroy();
+        const ctx = document.getElementById('prodChart').getContext('2d');
+        window.myChart = new Chart(ctx, {
+            type: 'line', 
+            data: { 
+                labels: data.production_chart.map(d => d.day), 
+                datasets: [{ 
+                    label: 'Production', 
+                    data: data.production_chart.map(d => d.count), 
+                    borderColor: '#2563eb', 
+                    tension: 0.3, 
+                    fill: true, 
+                    backgroundColor: 'rgba(37,99,235,0.1)' 
+                }] 
+            }, 
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+
+    // --- A. FUNCTIONS FOR SUMMARY TAB ---
+    function printSummary() {
+        const content = document.getElementById('summaryTable').outerHTML;
+        printContent(content, "Detailed Stock Summary");
+    }
+
+    function downloadSummaryCSV() {
+        if(!latestStockData || latestStockData.length === 0) return showToast("No Data", true);
+        let csv = "Brand,Size,Color,Total Production,In Stock\n";
+        latestStockData.forEach(row => {
+            csv += `${row.pipe_name},${row.size},${row.color},${row.total},${row.stock}\n`;
+        });
+        downloadFile(csv, "stock_summary.csv");
+    }
+
+    function filterSummary() {
+        const filter = document.getElementById('summarySearch').value.toLowerCase();
+        const rows = document.getElementById('summaryTable').getElementsByTagName('tr');
+        for (let i = 1; i < rows.length; i++) { 
+            let text = rows[i].textContent || rows[i].innerText;
+            rows[i].style.display = text.toLowerCase().indexOf(filter) > -1 ? "" : "none";
+        }
+    }
+
+    // --- B. FUNCTIONS FOR INVENTORY TAB ---
+    function printInventory() {
+        const content = document.getElementById('masterTable').outerHTML;
+        const filters = `Brand: ${document.getElementById('f_name').value || 'All'} | Size: ${document.getElementById('f_size').value || 'All'} | Color: ${document.getElementById('f_color').value || 'All'} | Status: ${document.getElementById('f_status').value || 'All'}`;
+        printContent(content, "Inventory List", filters);
+    }
+    
+    function downloadInventoryCSV() {
+        const params = new URLSearchParams({
+            name: document.getElementById('f_name').value,
+            size: document.getElementById('f_size').value,
+            color: document.getElementById('f_color').value,
+            status: document.getElementById('f_status').value,
+            start: document.getElementById('f_start').value,
+            // Add report-specific params if needed for other downloads
+            report_type: currentReportType,
+            date: document.getElementById('rep_date').value,
+            time_range: document.getElementById('rep_range').value,
+            grouped: (currentReportType === 'production') ? 'true' : 'false'
+        });
+        // Use the new secure download function
+        downloadFileWithAuth(`/api/export?${params}`, 'report.csv');
+    }
+
+    // --- HELPER FUNCTIONS ---
+    function printContent(html, title, subtitle='') {
+        const win = window.open('', '', 'height=800,width=1000');
+        win.document.write(`<html><head><title>${title}</title><style>@page { size: A4; margin: 20mm; } body { font-family: sans-serif; color: #333; } table { width: 100%; border-collapse: collapse; font-size: 12px; } th, td { border: 1px solid #ddd; padding: 8px; text-align: left; } th { background-color: #f8fafc; } h1 { text-align: center; font-size: 20px; }</style></head><body><h1>${title}</h1><p style="text-align:center;">${subtitle}</p>${html}</body></html>`);
+        win.document.close();
+        setTimeout(() => { win.print(); }, 500);
+    }
+
+    async function downloadFileWithAuth(url, filename) {
+        try {
+            const res = await fetch(url, { headers: AUTH_HEADER });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(`Download failed: ${err.error || res.statusText}`);
+            }
+            const blob = await res.blob();
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+        } catch (e) {
+            console.error(e);
+            showToast(e.message, true);
+        }
+    }
+
+    // --- FETCH INVENTORY ---
+    async function fetchInventory() {
+        const params = new URLSearchParams({
+            name: document.getElementById('f_name').value,
+            size: document.getElementById('f_size').value,
+            color: document.getElementById('f_color').value,
+            status: document.getElementById('f_status').value,
+            start: document.getElementById('f_start').value
+        });
+        const res = await fetch(`/api/inventory?${params}`, { headers: AUTH_HEADER });
+        const data = await res.json();
+        const tbody = document.getElementById('masterBody'); 
+        if(tbody) {
+            tbody.innerHTML = '';
+            if(data.length === 0) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">No records.</td></tr>'; return; }
+            data.forEach(row => {
+                let status = row.dispatched_at 
+                    ? `<span class="status-dispatch">Sent: ${row.dispatched_at.slice(11,16)}</span>` 
+                    : `<span class="status-stock">Stock</span>`;
+                
+                tbody.innerHTML += `<tr><td>#${String(row.id).padStart(4,'0')}</td><td>${row.pipe_name}</td><td>${row.size}</td><td>${row.color}</td><td>${(row.weight_g).toFixed(3)}</td><td>${row.operator}</td><td>${row.created_at.slice(0,16)}</td><td>${status}</td></tr>`;
+            });
+        }
+    }
+
+    // ... Reports Logic ...
+    async function previewReport(type) {
+        currentReportType = type;
+        const date = document.getElementById('rep_date').value;
+        const range = document.getElementById('rep_range').value;
+        let grouped = (type === 'production') ? 'true' : 'false';
+        const params = new URLSearchParams({ report_type: type, date: date, time_range: range, grouped: grouped });
+        const res = await fetch(`/api/inventory?${params}`, { headers: AUTH_HEADER });
+        const data = await res.json();
+        const container = document.getElementById('reportPreviewContainer');
+        const thead = document.getElementById('reportHead');
+        const tbody = document.getElementById('reportBody');
+        document.getElementById('reportTitle').innerText = (type === 'production' ? 'Production Summary' : 'Dispatch Log');
+        container.style.display = 'block';
+        tbody.innerHTML = '';
+        if(type === 'production') {
+            thead.innerHTML = `<tr><th>Brand</th><th>Size</th><th>Color</th><th style="text-align:center;">Quantity</th><th style="text-align:right;">Total Wt (Kg)</th><th style="text-align:right;">Avg Wt (Kg)</th></tr>`;
+            let grandTotalQty = 0; let grandTotalWt = 0;
+            if(data.length === 0) { tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">No production found.</td></tr>`; return; }
+            data.forEach(r => {
+                grandTotalQty += r.count; grandTotalWt += r.total_weight; // total_weight is in grams
+                tbody.innerHTML += `<tr><td style="font-weight:bold;">${r.pipe_name}</td><td>${r.size}</td><td>${r.color}</td><td style="text-align:center; font-weight:bold;">${r.count}</td><td style="text-align:right;">${(r.total_weight).toFixed(3)}</td><td style="text-align:right; color:#64748b;">${(r.avg_weight).toFixed(3)}</td></tr>`;
+            });
+            tbody.innerHTML += `<tr style="background:#f1f5f9; font-weight:bold; border-top:2px solid #cbd5e1;"><td colspan="3" style="text-align:right;">GRAND TOTAL:</td><td style="text-align:center;">${grandTotalQty}</td><td style="text-align:right;">${(grandTotalWt).toFixed(3)}</td><td></td></tr>`;
+        } else {
+            thead.innerHTML = `<tr><th>ID</th><th>Brand</th><th>Size</th><th>Color</th><th>Wt (kg)</th><th>Dispatched At</th><th>By</th></tr>`;
+            if(data.length === 0) { tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">No dispatch records.</td></tr>`; return; }
+            data.forEach(r => {
+                tbody.innerHTML += `<tr><td>${r.id}</td><td>${r.pipe_name}</td><td>${r.size}</td><td>${r.color}</td><td>${(r.weight_g).toFixed(3)}</td><td>${r.dispatched_at.slice(11,16)}</td><td>${r.dispatched_by}</td></tr>`;
+            });
+        }
+    }
+
+    // --- C. FUNCTIONS FOR SHIPMENT HISTORY TAB ---
+    async function fetchShipmentHistory() {
+        const container = document.getElementById('tab-shipments');
+        // Prevent re-fetching if already loaded
+        if(container.innerHTML.trim() !== '') return;
+
+        container.innerHTML = `<div class="data-table-container"><div class="table-responsive"><table id="shipmentHistoryTable"><thead></thead><tbody><tr><td colspan="9" style="text-align:center;">Loading...</td></tr></tbody></table></div></div>`;
+        const thead = container.querySelector('thead');
+        const tbody = container.querySelector('tbody');
+
+        thead.innerHTML = `<tr><th>ID</th><th>Challan No.</th><th>Customer</th><th>Address</th><th>Mobile</th><th>Vehicle</th><th>Date</th><th class="text-center">Pipes</th><th class="text-end">Weight (kg)</th></tr>`;
+        
+        try {
+            const res = await fetch('/api/admin/shipments', { headers: AUTH_HEADER });
+            const data = await res.json();
+            tbody.innerHTML = '';
+            if(data.length === 0) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">No shipment history found.</td></tr>'; return; }
+            
+            data.forEach(shipment => {
+                const date = new Date(shipment.created_at).toLocaleString();
+                const row = `
+                    <tr>
+                        <td>#${shipment.id}</td><td><a href="/shipment/${shipment.id}" target="_blank" title="View Shipment Details"><strong>${shipment.challan_no || 'N/A'}</strong></a></td><td><strong>${shipment.customer_name}</strong></td><td>${shipment.customer_address || 'N/A'}</td><td>${shipment.customer_mobile || 'N/A'}</td><td>${shipment.vehicle_no}</td><td>${date}</td><td class="text-center">${shipment.total_pipes}</td><td class="text-end">${(shipment.total_weight).toFixed(2)}</td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+        } catch(e) {
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:red;">Failed to load history.</td></tr>';
+        }
+    }
+
+    // Reuse helper functions for reports
+    function downloadCSV() { 
+        // This function is called from the reports tab, so we use the generic CSV download
+        downloadInventoryCSV(); 
+    }
+    function printReportPDF() { 
+         const content = document.getElementById('reportTable').outerHTML;
+         printContent(content, document.getElementById('reportTitle').innerText);
+    }
+
+    function downloadBackup() { 
+        downloadFileWithAuth('/api/backup', 'pvc_factory.db');
+    }
+    async function cleanData() { if(confirm("⚠️ Delete 30+ day old data?")) await fetch('/api/cleanup', { method: 'POST', headers: AUTH_HEADER }); showToast("Cleanup Done"); }
+</script>
+{% endblock %}

@@ -1,0 +1,155 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="card" style="max-width: 600px; margin: 0 auto; text-align: center;">
+    <h2>🤳 Universal Scanner</h2>
+    
+    <div style="margin: 20px 0;">
+        <input type="text" id="scannerInput" class="big-input" placeholder="Click & Scan Barcode" autocomplete="off" autofocus>
+        <p style="color: #64748b; margin-top: 10px; font-size: 0.9rem;">
+            🖥️ <strong>USB Gun:</strong> Seedha scan karo (Click box first)<br>
+            📱 <strong>Phone:</strong> Camera neeche use karo
+        </p>
+    </div>
+
+    <div style="border: 2px dashed #cbd5e1; border-radius: 12px; padding: 10px; background: #f8fafc;">
+        <div id="reader"></div>
+        <p style="margin-top:5px; color:#64748b; font-size:0.8rem;">Supports: QR & Barcode (Code128)</p>
+    </div>
+    
+    <div id="scanResult" style="display: none; margin-top: 20px; background: #f0fdf4; border: 2px solid #bbf7d0; padding: 2rem; border-radius: 16px; text-align: left;">
+        <h3 style="color: #166534; margin-bottom: 1rem;">✅ Match Found</h3>
+        <div style="font-size: 1.2rem;">ID: #<span id="r_id"></span></div>
+        <div style="font-size: 1.5rem; font-weight: 800; color: #1e293b;"><span id="r_name"></span></div>
+        <div style="color: #64748b; margin-bottom: 1rem;"><span id="r_size"></span> • <span id="r_weight"></span>g</div>
+        
+        <div style="padding: 10px; background: white; border-radius: 8px; text-align: center; font-weight: bold; border: 2px solid green; color: green;" id="r_status_box">
+            CHECKING...
+        </div>
+
+        <button class="btn" onclick="dispatchItem()" style="background: #166534; margin-top: 1rem;" id="dispatchBtn">MARK DISPATCHED</button>
+    </div>
+</div>
+
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+<script>
+    const inputField = document.getElementById('scannerInput');
+    let currentId = null;
+
+    // --- A. USB SCANNER LOGIC ---
+    inputField.addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            handleScanData(inputField.value.trim());
+            inputField.value = '';
+        }
+    });
+
+    // Auto-focus on input for USB Gun
+    document.addEventListener('click', (e) => {
+        // Agar hum camera buttons par click nahi kar rahe, tabhi focus karein
+        if(e.target.tagName !== 'BUTTON' && e.target.id !== 'html5-qrcode-button-camera-stop') {
+             if(document.activeElement !== inputField) inputField.focus();
+        }
+    });
+
+    // --- B. PHONE CAMERA LOGIC ---
+    function onCameraScanSuccess(decodedText, decodedResult) {
+        // Camera ko thoda break do taaki baar baar scan na kare
+        // html5QrcodeScanner.pause(); 
+        handleScanData(decodedText);
+    }
+
+    // --- C. COMMON DATA HANDLER ---
+    function handleScanData(text) {
+        if(!text) return;
+        
+        let idToFetch = text;
+
+        // Try to detect if it is JSON (QR Code) or Plain Text (Barcode)
+        try {
+            const json = JSON.parse(text);
+            if(json.id) idToFetch = json.id;
+        } catch(e) {
+            // Agar JSON fail hua, matlab ye seedha Barcode ID hai (e.g. "15")
+            // Do nothing, use text as is.
+        }
+
+        fetchDetails(idToFetch);
+    }
+
+    // --- D. API FETCH DETAILS ---
+    async function fetchDetails(id) {
+        const res = await fetch(`/api/labels/${id}`);
+        if(res.ok) {
+            const data = await res.json();
+            currentId = data.id;
+            
+            // Show Result UI
+            document.getElementById('scanResult').style.display = 'block';
+            document.getElementById('r_id').textContent = String(data.id).padStart(4,'0');
+            document.getElementById('r_name').textContent = data.pipe_name;
+            document.getElementById('r_size').textContent = `${data.size} | ${data.color}`;
+            document.getElementById('r_weight').textContent = data.weight_g;
+            
+            // Status Check
+            const box = document.getElementById('r_status_box');
+            const btn = document.getElementById('dispatchBtn');
+            
+            if(data.dispatched_at) {
+                box.innerText = "ALREADY DISPATCHED";
+                box.style.color = "red";
+                box.style.borderColor = "red";
+                btn.disabled = true;
+                btn.innerText = "Already Sent";
+                showToast("⚠️ Already Dispatched!", true);
+            } else {
+                box.innerText = "IN STOCK";
+                box.style.color = "green";
+                box.style.borderColor = "green";
+                btn.disabled = false;
+                btn.innerText = "MARK DISPATCHED";
+                
+                // Camera wale user ke liye scroll down karo
+                document.getElementById('scanResult').scrollIntoView({behavior: "smooth"});
+            }
+        } else {
+            showToast("❌ ID Not Found", true);
+        }
+    }
+
+    // --- E. DISPATCH ACTION ---
+    async function dispatchItem() {
+        if(!currentId) return;
+        const res = await fetch('/api/dispatch', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({id: currentId}) });
+        if(res.ok) {
+            showToast("✅ Item Dispatched!");
+            document.getElementById('r_status_box').innerText = "DISPATCHED JUST NOW";
+            document.getElementById('dispatchBtn').disabled = true;
+            
+            // Clear input and Refocus
+            inputField.value = '';
+            inputField.focus();
+            
+            // Agar camera paused tha to resume karo (Optional)
+            // html5QrcodeScanner.resume();
+        }
+    }
+
+    // --- F. CAMERA CONFIGURATION (QR + BARCODE) ---
+    const html5QrcodeScanner = new Html5QrcodeScanner(
+        "reader", 
+        { 
+            fps: 10, 
+            qrbox: { width: 250, height: 150 }, // Barcode ke liye wide box
+            formatsToSupport: [ 
+                Html5QrcodeSupportedFormats.QR_CODE,
+                Html5QrcodeSupportedFormats.CODE_128, // Ye hai Barcode support
+                Html5QrcodeSupportedFormats.CODE_39 
+            ]
+        },
+        /* verbose= */ false
+    );
+    html5QrcodeScanner.render(onCameraScanSuccess);
+</script>
+{% endblock %}
