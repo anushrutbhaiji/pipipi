@@ -1,0 +1,35 @@
+<div>
+    <div id="visualWarehouse">
+        <div style="text-align:center; padding:40px; color:#64748b;">Loading Visual Stock...</div>
+    </div>
+
+    <div class="card" style="margin-top: 30px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px;">
+            <h3 style="margin: 0;">📋 Detailed Stock List</h3>
+            
+            <div style="display: flex; gap: 10px;">
+                <button class="btn" style="width: auto; padding: 8px 15px; font-size: 0.9rem; background: #334155;" onclick="printSummary()">🖨️ Print</button>
+                <button class="btn" style="width: auto; padding: 8px 15px; font-size: 0.9rem; background: #166534;" onclick="downloadSummaryCSV()">📥 Export CSV</button>
+                
+                <input type="text" id="summarySearch" placeholder="🔍 Search..." 
+                       onkeyup="filterSummary()" 
+                       style="width: 200px; padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px;">
+            </div>
+        </div>
+        
+        <div class="table-responsive">
+            <table id="summaryTable" style="width: 100%;">
+                <thead style="background: #f8fafc;">
+                    <tr>
+                        <th style="padding: 15px;">Brand</th>
+                        <th>Size</th>
+                        <th>Color</th>
+                        <th>Stock Count</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="summaryBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>

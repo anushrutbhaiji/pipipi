@@ -1,0 +1,33 @@
+
+<div class="filter-bar">
+    <div class="filter-group"><label>Report Date</label><input type="date" id="rep_date"></div>
+    <div class="filter-group">
+        <label>Select Shift / Time</label>
+        <select id="rep_range">
+            <option value="">Whole Day (24 Hrs)</option>
+            <option value="09-17">General (09:00 - 17:00)</option>
+            <option value="08-20">Morning Shift (08:00 - 20:00)</option>
+            <option value="20-08">Night Shift (20:00 - 08:00)</option>
+            <option value="06-14">Shift A (06:00 - 14:00)</option>
+            <option value="14-22">Shift B (14:00 - 22:00)</option>
+            <option value="22-06">Shift C (22:00 - 06:00)</option>
+        </select>
+    </div>
+    <div class="filter-group"><button class="btn" style="background: #0ea5e9;" onclick="previewReport('production')">📊 Production Summary</button></div>
+    <div class="filter-group"><button class="btn" style="background: #166534;" onclick="previewReport('dispatch')">🚚 Dispatch Log</button></div>
+</div>
+
+<div id="reportPreviewContainer" style="display: none; margin-top: 20px;">
+    <div class="data-table-container">
+        <div class="preview-actions">
+            <h3 style="margin:0;" id="reportTitle">Report</h3>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn" style="width:auto; padding:8px 15px; font-size:0.9rem; background:#334155;" onclick="printReportPDF()">🖨️ Print A4</button>
+                <button class="btn" style="width:auto; padding:8px 15px; font-size:0.9rem; background:#166534;" onclick="downloadCSV()">📥 Export CSV</button>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table id="reportTable"><thead id="reportHead"></thead><tbody id="reportBody"></tbody></table>
+        </div>
+    </div>
+</div>

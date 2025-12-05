@@ -1,0 +1,19 @@
+<div class="filter-bar">
+    <div class="filter-group"><label>Brand</label><select id="f_name"><option value="">All</option><option value="Gangotry">Gangotry</option><option value="UltraPlast">UltraPlast</option><option value="KissanGreen">KissanGreen</option><option value="Casing">Casing</option></select></div>
+    <div class="filter-group"><label>Size</label><select id="f_size"><option value="">All</option><option value="63mm">63mm</option><option value="75mm">75mm</option><option value="90mm">90mm</option><option value="110mm">110mm</option><option value="140mm">140mm</option><option value="160mm">160mm</option><option value="180mm">180mm</option><option value="200mm">200mm</option></select></div>
+    <div class="filter-group"><label>Color</label><select id="f_color"><option value="">All</option><option value="Blue">Blue</option><option value="Grey">Grey</option></select></div>
+    <div class="filter-group"><label>Status</label><select id="f_status"><option value="">All</option><option value="stock">In Stock</option><option value="dispatched">Dispatched</option></select></div>
+    <div class="filter-group"><label>Date</label><input type="date" id="f_start"></div>
+    <div class="filter-group"><button class="btn" style="margin-bottom: 0;" onclick="fetchInventory()">🔍 Apply</button></div>
+    
+    <div class="filter-group" style="border-left: 2px solid #e2e8f0; padding-left: 15px; margin-left: 15px;">
+        <label>Actions</label>
+        <div style="display: flex; gap: 5px;">
+            <button class="btn" style="background: #334155; margin:0; padding: 10px;" onclick="printInventory()" title="Print List">🖨️</button>
+            <button class="btn" style="background: #166534; margin:0; padding: 10px;" onclick="downloadInventoryCSV()" title="Download CSV">📥</button>
+        </div>
+    </div>
+</div>
+<div class="data-table-container">
+    <div class="table-responsive"><table id="masterTable"><thead><tr><th>ID</th><th>Pipe Name</th><th>Size</th><th>Color</th><th>Weight (kg)</th><th>Op</th><th>Created</th><th>Status</th></tr></thead><tbody id="masterBody"></tbody></table></div>
+</div>
