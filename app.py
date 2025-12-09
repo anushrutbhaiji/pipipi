@@ -6,6 +6,7 @@ import sqlite3
 from flask import Flask, render_template, request, jsonify, send_file, Response
 import services          # Our new Logic Layer
 import printer_backend   # Our new Hardware Layer
+import scale_backend  # Import our new simulation driver
 
 app = Flask(__name__)
 
@@ -180,7 +181,26 @@ def cleanup():
     services.run_cleanup()
     return jsonify({"success": True})
 
+# --- SCALE API (Simulation Mode) ---
+@app.route('/api/get_weight', methods=['GET'])
+def get_weight_api():
+    try:
+        # Ask the mock driver for the weight
+        weight = scale_backend.get_live_weight()
+        return jsonify({"success": True, "weight": weight})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route('/api/tare', methods=['POST'])
+def tare_scale_api():
+    try:
+        scale_backend.tare_scale()
+        return jsonify({"success": True, "message": "Scale Tared"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
 if __name__ == '__main__':
     if not os.path.exists('templates'): os.makedirs('templates')
     print("System Running on http://localhost:5000")
     app.run(host='0.0.0.0', port=5000)
+
