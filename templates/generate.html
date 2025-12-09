@@ -261,7 +261,59 @@
             document.getElementById('weight_g').focus();
         }
     });
+    // --- START: NEW SCALE LOGIC ---
+    let autoScaleInterval = null;
+
+    async function fetchLiveWeight() {
+        const input = document.getElementById('weight_g');
+        try {
+            const res = await fetch('/api/get_weight');
+            const data = await res.json();
+            
+            if(data.success) {
+                // Update the box with the "simulated" weight
+                input.value = data.weight.toFixed(3);
+                
+                // Trigger your existing preview logic so the label updates visually
+                updatePreview(); 
+                
+                // Visual Flash (Green) to show data was received
+                input.style.borderColor = "#10b981";
+                setTimeout(() => input.style.borderColor = "#cbd5e1", 200);
+            }
+        } catch(e) { 
+            console.error("Scale Error", e); 
+            showToast("Connection Error", true);
+        }
+    }
+
+    function toggleAutoWeight() {
+        const isChecked = document.getElementById('autoScale').checked;
+        if(isChecked) {
+            // Start checking every 800ms
+            fetchLiveWeight(); 
+            autoScaleInterval = setInterval(fetchLiveWeight, 800); 
+            showToast("Live Scale ON");
+        } else {
+            // Stop checking
+            clearInterval(autoScaleInterval);
+            showToast("Live Scale OFF");
+        }
+    }
+
+    async function tareScale() {
+        if(confirm("Confirm: Set current weight to 0.000?")) {
+            const res = await fetch('/api/tare', { method: 'POST' });
+            const data = await res.json();
+            if(data.success) {
+                showToast("Scale Reset (Tare)");
+                fetchLiveWeight(); // Update UI immediately
+            }
+        }
+    }
+    // --- END: NEW SCALE LOGIC ---
 </script>
 {% endblock %}
 {% endblock %}
+
 
