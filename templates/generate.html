@@ -123,7 +123,33 @@
             <input type="hidden" id="color" value="Blue">
 
             <div class="section-label">Net Weight (Kg)</div>
-            <input type="number" id="weight_g" class="big-input" placeholder="0.000" step="0.001" required autofocus oninput="updatePreview()">
+<div style="background: #f1f5f9; padding: 15px; border-radius: 12px; margin-bottom: 1.5rem; border: 2px solid #e2e8f0;">
+    
+    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+        <input type="number" id="weight_g" class="big-input" 
+               placeholder="0.000" step="0.001" required 
+               oninput="updatePreview()" 
+               style="margin-bottom: 0; background: white; border: 2px solid #cbd5e1; flex: 1;">
+        
+        <button type="button" class="btn" onclick="fetchLiveWeight()" 
+                style="width: auto; padding: 0 25px; background: #2563eb; font-size: 1.2rem;">
+            ⚖️ READ
+        </button>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #64748b; font-weight: 600;">
+            <input type="checkbox" id="autoScale" onchange="toggleAutoWeight()" style="width: 20px; height: 20px; cursor: pointer;">
+            <label for="autoScale" style="margin:0; cursor: pointer;">Auto-Poll (Live Connection)</label>
+        </div>
+
+        <button type="button" class="btn" onclick="tareScale()" 
+                style="width: auto; padding: 8px 15px; font-size: 0.85rem; background: #64748b; margin: 0;">
+            ZERO / TARE
+        </button>
+    </div>
+</div>
             
             <button type="submit" class="btn" style="margin-top: 1rem;">PRINT LABEL (ENTER)</button>
         </form>
@@ -238,3 +264,4 @@
 </script>
 {% endblock %}
 {% endblock %}
+
