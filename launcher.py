@@ -1,115 +1,127 @@
 import tkinter as tk
 from tkinter import messagebox
 import subprocess
-import threading
-import sys
 import os
-import signal
-import webbrowser
 import time
+import sys
+import urllib.request
+import urllib.error
 
 # --- CONFIGURATION ---
-PYTHON_CMD = "python"
 APP_SCRIPT = "app.py"
-# Tumhara permanent domain
-PERMANENT_URL = "https://app.bhaijiproducts.online" 
+GENERATE_PAGE_URL = "http://localhost:5000/" 
+
+# Cloudflare command (Agar use kar rahe ho to)
+CLOUDFLARE_CMD = ["cloudflared", "tunnel", "run", "gen-tunnel"] 
 
 class FactoryLauncher:
     def __init__(self, root):
         self.root = root
-        self.root.title("PVC Factory Control Panel (Live Domain)")
-        self.root.geometry("550x300")
-        self.root.configure(bg="#f0f2f5")
+        self.root.title("Touch Kiosk Boot")
+        self.root.geometry("400x250")
         
-        # Variables
-        self.server_process = None
+        self.app_process = None
+        self.tunnel_process = None
         self.is_running = False
 
-        # --- UI Elements ---
-        self.header = tk.Label(root, text="少 PVC PRO System (Live Domain)", font=("Arial", 16, "bold"), bg="#f0f2f5", fg="#333")
-        self.header.pack(pady=10)
-
-        self.status_label = tk.Label(root, text="Status: STOPPED 閥", font=("Arial", 14), bg="#f0f2f5", fg="red")
-        self.status_label.pack(pady=5)
-
-        self.url_label = tk.Label(root, text=f"倹 Admin Link: {PERMANENT_URL}/admin", font=("Consolas", 12), bg="#e1e4e8", padx=10, pady=5, fg="#2563eb", cursor="hand2")
-        self.url_label.pack(pady=10, fill="x", padx=30)
-        self.url_label.bind("<Button-1>", lambda e: self.open_link(f"{PERMANENT_URL}/admin"))
-
-        self.btn_start = tk.Button(root, text="START PYTHON SERVER", command=self.start_system, font=("Arial", 12, "bold"), bg="#10b981", fg="white", width=30, height=2)
-        self.btn_start.pack(pady=10)
-
-        self.btn_stop = tk.Button(root, text="STOP SERVER", command=self.stop_system, font=("Arial", 12, "bold"), bg="#ef4444", fg="white", width=30, height=2, state="disabled")
-        self.btn_stop.pack(pady=5)
-
-        tk.Label(root, text="Tunnel (Cloudflare) is running automatically as a Windows Service.", font=("Arial", 9), bg="#f0f2f5", fg="#64748b").pack(pady=10)
+        # Status Label
+        self.status_label = tk.Label(root, text="Booting Factory System...", font=("Arial", 16, "bold"), fg="orange")
+        self.status_label.pack(pady=40)
+        
+        tk.Label(root, text="(Touch Optimized)", font=("Arial", 10), fg="grey").pack()
 
         # Handle window close
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
-    def open_link(self, url):
-        """Opens the permanent URL in the default web browser."""
-        if self.is_running:
-            webbrowser.open_new(url)
+        # --- AUTO-START SEQUENCE ---
+        # 1. Wait 10s for Wi-Fi/System (Pi needs this)
+        self.count_down(10)
+
+    def count_down(self, seconds):
+        if seconds > 0:
+            self.status_label.config(text=f"Waiting for System: {seconds}s 📡")
+            self.root.after(1000, lambda: self.count_down(seconds - 1))
         else:
-            messagebox.showwarning("System Offline", "Please start the Python Server first.")
+            self.start_system()
 
     def start_system(self):
         if self.is_running: return
         
-        self.status_label.config(text="Status: STARTING PYTHON... 泯", fg="orange")
-        self.btn_start.config(state="disabled")
-        
-        # Start Flask Server (app.py)
         try:
-            # We use subprocess.DETACHED_PROCESS to run it in the background
-            self.server_process = subprocess.Popen(
-                [PYTHON_CMD, APP_SCRIPT],
-                creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NO_WINDOW
-            )
-            # Give server a moment to boot
-            time.sleep(2) 
+            # 1. Start Python App FIRST
+            self.status_label.config(text="Starting Server... 🚀", fg="blue")
+            self.root.update()
+            
+            # Force Working Directory
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            self.app_process = subprocess.Popen([sys.executable, APP_SCRIPT], cwd=script_dir)
+            
+            # 2. Check Readiness
+            self.check_app_readiness(retries=30)
+
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to start app.py: {e}\nCheck if Python is in your system PATH.")
-            self.stop_system()
-            return
+            self.status_label.config(text=f"Error: {e}", fg="red")
 
-        self.is_running = True
-        self.btn_stop.config(state="normal")
-        self.status_label.config(text="Status: RUNNING 泙 (Open Link Above)", fg="green")
-        self.btn_start.config(text="SERVER IS ACTIVE", bg="#059669")
-        
-        # Open browser automatically after starting server
-        self.open_link(f"{PERMANENT_URL}/admin")
-
-
-    def stop_system(self):
-        if not self.is_running: return
-        
-        # Killing the Python process safely (using its PID)
+    def check_app_readiness(self, retries):
+        """Pings localhost to check if server is running"""
         try:
-            # Note: Since we used DETACHED_PROCESS, we need taskkill
-            subprocess.call(['taskkill', '/F', '/T', '/PID', str(self.server_process.pid)], creationflags=subprocess.CREATE_NO_WINDOW)
+            with urllib.request.urlopen("http://localhost:5000", timeout=1) as response:
+                if response.status == 200:
+                    self.launch_kiosk_browser()
+                    self.launch_tunnel()
+                    return
+        except (urllib.error.URLError, ConnectionRefusedError):
+            pass
+
+        if retries > 0:
+            self.status_label.config(text=f"Loading Server... ({retries})")
+            self.root.after(1000, lambda: self.check_app_readiness(retries - 1))
+        else:
+            self.status_label.config(text="Server Failed ❌", fg="red")
+
+    def launch_kiosk_browser(self):
+        """
+        Opens Chromium with TOUCHSCREEN optimized settings.
+        """
+        self.status_label.config(text="Launching Touch Interface... 👆", fg="green")
+        self.root.update()
+        
+        try:
+            # --- TOUCHSCREEN OPTIMIZED FLAGS ---
+            cmd = [
+                "chromium",
+                "--kiosk",                       # Full Screen (No Address Bar)
+                "--noerrdialogs",                # No Error Popups
+                "--disable-infobars",            # No "Chrome is controlled..." bar
+                "--check-for-update-interval=31536000", # No Updates
+                
+                # TOUCH SPECIFIC SETTINGS:
+                "--overscroll-history-navigation=0", # IMPORTANT: Disable 'Swipe to Back'
+                "--disable-pinch",                   # IMPORTANT: Disable 'Pinch to Zoom'
+                "--touch-events=enabled",            # Force Touch Support
+                "--disable-features=Translate",      # Disable Translate Popup
+                
+                GENERATE_PAGE_URL
+            ]
+            
+            subprocess.Popen(cmd)
+            
+            # Hide Launcher Window
+            self.root.iconify() 
             
         except Exception as e:
-            # Handle if process already died
-            print(f"Error stopping process: {e}")
-            pass
-        
-        self.server_process = None
+            messagebox.showerror("Browser Error", f"Chromium nahi mila: {e}")
 
-        self.is_running = False
-        self.btn_start.config(state="normal", text="START PYTHON SERVER", bg="#10b981")
-        self.btn_stop.config(state="disabled")
-        self.status_label.config(text="Status: STOPPED 閥", fg="red")
+    def launch_tunnel(self):
+        try:
+            self.tunnel_process = subprocess.Popen(CLOUDFLARE_CMD, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except:
+            pass
 
     def on_close(self):
-        if self.is_running:
-            if messagebox.askokcancel("Quit", "Server is running. Do you want to stop it and exit?"):
-                self.stop_system()
-                self.root.destroy()
-        else:
-            self.root.destroy()
+        if self.app_process: self.app_process.terminate()
+        if self.tunnel_process: self.tunnel_process.terminate()
+        self.root.destroy()
 
 if __name__ == "__main__":
     root = tk.Tk()

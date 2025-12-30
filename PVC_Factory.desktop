@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=PVC Factory Pro
+Comment=Start Factory Dashboard & Cloudflare
+# CHANGE THIS PATH to your actual folder location:
+Path=/home/pvc/pipipi
+# command to run python:
+Exec=python3 launcher.py
+Icon=system-run
+Terminal=false
+Categories=Utility;Application;

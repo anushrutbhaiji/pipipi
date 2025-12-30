@@ -1,82 +1,95 @@
 {% extends "layout.html" %}
 {% block content %}
 <style>
-    .chip-container { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 2rem; }
-    .chip { padding: 12px 20px; border: 2px solid #e2e8f0; border-radius: 12px; cursor: pointer; font-weight: 600; background: white; color: #64748b; flex: 1; text-align: center; min-width: 80px; }
+    /* --- BASE STYLES --- */
+    .chip-container { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1rem; }
+    .chip { 
+        padding: 8px 10px; border: 2px solid #e2e8f0; border-radius: 8px; 
+        cursor: pointer; font-weight: 600; background: white; color: #64748b; 
+        flex: 1; text-align: center; min-width: 60px; font-size: 0.9rem;
+    }
     .chip.active { background: #eff6ff; color: var(--primary); border-color: var(--primary); }
-    .section-label { font-size: 0.85rem; text-transform: uppercase; color: #94a3b8; font-weight: 700; margin-bottom: 10px; }
+    .section-label { font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; font-weight: 700; margin-bottom: 5px; }
     
-    /* --- FIXED LABEL PREVIEW STYLE --- */
+    /* --- PREVIEW BOX --- */
     .preview-box { 
-        background: #f1f5f9; border-radius: 16px; padding: 2rem; 
+        background: #f1f5f9; border-radius: 12px; padding: 1rem; 
         display: flex; justify-content: center; align-items: center; 
-        min-height: 300px; border: 2px dashed #cbd5e1; 
+        min-height: 180px; border: 2px dashed #cbd5e1; margin-bottom: 1rem;
     }
     
     .label-visual {
-        width: 400px; 
-        height: 250px;
-        background: white; 
-        border: 3px solid #000;
-        padding: 15px; 
-        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        width: 320px; height: 200px; background: white; border: 3px solid #000;
+        padding: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         font-family: Arial, sans-serif;
-        display: grid;
-        grid-template-columns: 2fr 1fr; /* Text takes 2 parts, QR takes 1 part */
-        grid-template-rows: auto auto 1fr auto;
-        gap: 5px;
-        position: relative;
+        display: grid; grid-template-columns: 2fr 1fr; grid-template-rows: auto auto 1fr auto;
+        gap: 5px; position: relative;
+        transform: scale(0.85); transform-origin: center;
     }
 
-    /* Left Side: Text Info */
     .lbl-header { grid-column: 1 / 2; grid-row: 1 / 2; align-self: start; }
-    .lbl-brand { font-size: 26px; font-weight: 800; text-transform: uppercase; line-height: 1.1; word-wrap: break-word; }
-    .lbl-detail { font-size: 18px; color: #333; margin-top: 5px; font-weight: 600; }
+    .lbl-brand { font-size: 22px; font-weight: 800; text-transform: uppercase; line-height: 1; }
+    .lbl-detail { font-size: 16px; color: #333; margin-top: 5px; font-weight: 600; }
     
-    /* Right Side: QR Code (Fixed Zone) */
     .lbl-qr-zone { 
-        grid-column: 2 / 3; 
-        grid-row: 1 / 3; 
-        justify-self: end;
-        width: 110px; 
-        height: 110px; 
-        border: 1px solid #eee; 
-        background: #fafafa;
+        grid-column: 2 / 3; grid-row: 1 / 3; justify-self: end;
+        width: 90px; height: 90px; border: 1px solid #eee; background: #fafafa;
         display: flex; align-items: center; justify-content: center;
     }
     .lbl-qr-zone img { width: 100%; height: 100%; object-fit: contain; }
 
-    /* Center: Weight */
     .lbl-weight-zone { 
-        grid-column: 1 / 3; 
-        grid-row: 3 / 4; 
-        display: flex; 
-        align-items: center; 
-        justify-content: center; 
-        font-size: 42px; 
-        font-weight: 900; 
-        color: #000;
-        border-top: 2px solid #eee;
-        border-bottom: 2px solid #eee;
-        margin: 10px 0;
+        grid-column: 1 / 3; grid-row: 3 / 4; 
+        display: flex; align-items: center; justify-content: center; 
+        font-size: 36px; font-weight: 900; color: #000;
+        border-top: 2px solid #eee; border-bottom: 2px solid #eee; margin: 5px 0;
     }
 
-    /* Bottom: Meta Data */
     .lbl-meta { 
-        grid-column: 1 / 3; 
-        grid-row: 4 / 5; 
-        font-size: 13px; 
-        color: #555; 
-        display: flex; 
-        justify-content: space-between;
-        align-items: flex-end;
+        grid-column: 1 / 3; grid-row: 4 / 5; 
+        font-size: 11px; color: #555; 
+        display: flex; justify-content: space-between; align-items: flex-end;
+    }
+
+    /* --- LAYOUT GRID --- */
+    .main-layout {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr; /* Left gets slightly more space */
+        gap: 15px;
+        height: calc(100vh - 100px); /* Fit screen height minus header */
+    }
+
+    .left-panel { overflow-y: auto; }
+    .right-panel { display: flex; flex-direction: column; }
+
+    /* --- NUMPAD STYLES --- */
+    .numpad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .numpad-btn {
+        padding: 12px; font-size: 1.2rem; font-weight: bold;
+        border: 2px solid #e2e8f0; border-radius: 8px;
+        background: white; cursor: pointer; color: #334155;
+    }
+    .numpad-btn:active { background: #e2e8f0; }
+
+    /* --- RASPBERRY PI SPECIFIC --- */
+    @media screen and (max-width: 1024px) {
+        .container { max-width: 100%; margin: 0; padding: 10px; }
+        .card { padding: 15px; margin-bottom: 0; }
+        h2 { display: none; } /* Hide title to save space */
+        .navbar { padding: 5px 15px; } /* Slim navbar */
+        
+        /* Make preview smaller to fit */
+        .preview-box { min-height: 160px; padding: 0.5rem; }
+        .label-visual { transform: scale(0.65); }
     }
 </style>
 
-<div class="grid">
-    <div class="card">
-        <h2 style="margin-bottom: 1.5rem;">New Label</h2>
-        <form id="labelForm">
+<form id="labelForm">
+    <div class="main-layout">
+        
+        <div class="card left-panel">
+            <h3 style="margin-top:0; margin-bottom:10px; font-size:1rem; color:#64748b;">1. Select Product</h3>
+
             <div class="section-label">Operator / Shift</div>
             <div class="chip-container" id="group-operator">
                 <div class="chip active" onclick="select('operator', this, 'Shift-A')">Shift-A</div>
@@ -116,56 +129,89 @@
             <input type="hidden" id="size" value="63mm">
 
             <div class="section-label">Color</div>
-            <div class="chip-container" id="group-color">
+            <div class="chip-container" id="group-color" style="margin-bottom:0;">
                 <div class="chip active" onclick="select('color', this, 'Blue')">Blue</div>
                 <div class="chip" onclick="select('color', this, 'Grey')">Grey</div>
             </div>
             <input type="hidden" id="color" value="Blue">
+        </div>
 
-            <div class="section-label">Net Weight (Kg)</div>
-            <input type="number" id="weight_g" class="big-input" placeholder="0.000" step="0.001" required autofocus oninput="updatePreview()">
+        <div class="card right-panel" style="justify-content: space-between;">
             
-            <button type="submit" class="btn" style="margin-top: 1rem;">PRINT LABEL (ENTER)</button>
-        </form>
-    </div>
-
-    <div class="card" style="text-align: center;">
-        <h3>Live Preview</h3>
-        <div class="preview-box" id="previewArea">
+            <div>
+                <h3 style="margin-top:0; margin-bottom:5px; font-size:1rem; color:#64748b; text-align:center;">Live Preview</h3>
+                <div class="preview-box" id="previewArea"></div>
             </div>
+
+            <div style="background: #f8fafc; padding: 10px; border-radius: 12px; border: 1px solid #e2e8f0;">
+                <div class="section-label">2. Enter Weight (Kg)</div>
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <input type="text" id="weight_g" class="big-input" placeholder="0.000" readonly style="margin-bottom:0; flex:1; background:white;">
+                    <button type="button" class="btn" style="width: auto; padding: 0 20px; font-size: 1.5rem; background:#10b981; color:white; border:none;" onclick="submitForm()">🖨️</button>
+                </div>
+
+                <div class="numpad-grid">
+                    <button type="button" class="numpad-btn" onclick="addNum('1')">1</button>
+                    <button type="button" class="numpad-btn" onclick="addNum('2')">2</button>
+                    <button type="button" class="numpad-btn" onclick="addNum('3')">3</button>
+                    <button type="button" class="numpad-btn" onclick="addNum('4')">4</button>
+                    <button type="button" class="numpad-btn" onclick="addNum('5')">5</button>
+                    <button type="button" class="numpad-btn" onclick="addNum('6')">6</button>
+                    <button type="button" class="numpad-btn" onclick="addNum('7')">7</button>
+                    <button type="button" class="numpad-btn" onclick="addNum('8')">8</button>
+                    <button type="button" class="numpad-btn" onclick="addNum('9')">9</button>
+                    <button type="button" class="numpad-btn" onclick="addNum('.')">.</button>
+                    <button type="button" class="numpad-btn" onclick="addNum('0')">0</button>
+                    <button type="button" class="numpad-btn" style="color: #ef4444; border-color: #ef4444;" onclick="clearWeight()">❌</button>
+                </div>
+            </div>
+            
+            <button type="submit" id="realSubmitBtn" style="display: none;">PRINT</button>
+        </div>
     </div>
-</div>
+</form>
 
 {% block scripts %}
 <script>
-    // Initial Render
     window.onload = function() { updatePreview(); }
 
     function select(type, el, val) {
-        // Handle name specifically or generic ID
         let inputId = (type === 'name') ? 'pipe_name' : type;
         document.getElementById(inputId).value = val;
-        
         let container = document.getElementById('group-'+type);
         for(let c of container.getElementsByClassName('chip')) c.classList.remove('active');
         el.classList.add('active');
-        
         updatePreview();
-        if(type !== 'weight') document.getElementById('weight_g').focus();
     }
 
-    // --- LIVE PREVIEW LOGIC ---
+    function addNum(val) {
+        let field = document.getElementById('weight_g');
+        let current = field.value;
+        if(val === '.' && current.includes('.')) return;
+        if(current.length > 7) return; 
+        if(val === '.' && current === '') field.value = '0.';
+        else field.value += val;
+        updatePreview();
+    }
+
+    function clearWeight() {
+        document.getElementById('weight_g').value = '';
+        updatePreview();
+    }
+
+    function submitForm() {
+        document.getElementById('realSubmitBtn').click();
+    }
+
     function updatePreview(qrBase64 = null) {
         const brand = document.getElementById('pipe_name').value;
         const size = document.getElementById('size').value;
         const color = document.getElementById('color').value;
         const op = document.getElementById('operator').value;
-        const pressure = document.getElementById('pressure').value; // Get Pressure
+        const pressure = document.getElementById('pressure').value; 
         const weight = document.getElementById('weight_g').value || '0.000';
         
-        let qrHtml = qrBase64 
-            ? `<img src="${qrBase64}">` 
-            : `<span style="color:#ccc; font-size:12px;">QR Code</span>`;
+        let qrHtml = qrBase64 ? `<img src="${qrBase64}">` : `<span style="color:#ccc; font-size:12px;">QR Code</span>`;
 
         const html = `
         <div class="label-visual">
@@ -180,34 +226,30 @@
                 <span>Date: ${new Date().toLocaleDateString()}</span>
             </div>
         </div>`;
-        
         document.getElementById('previewArea').innerHTML = html;
     }
 
-    // --- SUBMISSION ---
     const form = document.getElementById('labelForm');
-    const btn = form.querySelector('button');
     let isProcessing = false;
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         if(isProcessing) return; 
-
         let wt = parseFloat(document.getElementById('weight_g').value);
         if (isNaN(wt) || wt <= 0) { showToast("Enter Weight!", true); return; }
 
-        // LOCK
         isProcessing = true;
-        btn.disabled = true;
-        btn.innerText = "Printing...";
-        btn.style.opacity = "0.7";
+        let printBtn = document.querySelector('button[onclick="submitForm()"]');
+        let originalText = printBtn.innerText;
+        printBtn.innerText = "⏳";
+        printBtn.style.opacity = "0.7";
 
         let payload = {
             operator: document.getElementById('operator').value,
             pipe_name: document.getElementById('pipe_name').value,
             size: document.getElementById('size').value,
             color: document.getElementById('color').value,
-            pressure: document.getElementById('pressure').value, // Add Pressure here
+            pressure: document.getElementById('pressure').value, 
             weight_g: wt.toFixed(3)
         };
 
@@ -217,22 +259,16 @@
             if (data.success) {
                 updatePreview(data.qr_image);
                 showToast("Printing...");
-                
-                // --- CRITICAL CHANGE: Pass pressure AGAIN to print route ---
-                // Because we aren't saving it to DB, the print route needs to know it from here.
                 let printPayload = { id: data.label.id, pressure: payload.pressure };
-
                 const pRes = await fetch('/api/print', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(printPayload) });
                 if ((await pRes.json()).success) showToast("Printed!");
             }
         } catch (e) { showToast("Error", true); }
         finally {
             isProcessing = false;
-            btn.disabled = false;
-            btn.innerText = "PRINT LABEL (ENTER)";
-            btn.style.opacity = "1";
+            printBtn.innerText = originalText;
+            printBtn.style.opacity = "1";
             document.getElementById('weight_g').value = '';
-            document.getElementById('weight_g').focus();
         }
     });
 </script>
