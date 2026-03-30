@@ -70,12 +70,39 @@
     .section { display: none; }
     .section.active { display: block; animation: fadeIn 0.3s; }
     @keyframes fadeIn { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
+
+    /* VIEW TOGGLE BTN */
+    .view-toggle { display: flex; background: #e2e8f0; border-radius: 8px; padding: 4px; display: inline-flex; margin-bottom: 15px; }
+    .view-toggle button { border: none; background: none; padding: 6px 15px; border-radius: 6px; font-weight: 600; color: #64748b; cursor: pointer; }
+    .view-toggle button.active { background: white; color: #1e293b; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    
+    /* Make the Stock Table container fill the screen height */
+    #tab-stock-table .table-responsive {
+        max-height: calc(100vh - 150px) !important; /* Uses all available vertical space */
+    }
+
+    /* Optional: Compact rows to fit more data */
+    #tab-stock-table td, #tab-stock-table th {
+        padding: 6px 10px !important; /* Smaller padding than the default 10px 12px */
+    }
+    /* --- PAGINATION STYLES --- */
+    .page-btn { padding: 6px 12px; border: 1px solid #cbd5e1; background: white; color: #475569; border-radius: 4px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+    .page-btn:hover { background: #f1f5f9; }
+    .page-btn.active { background: #2563eb; color: white; border-color: #2563eb; box-shadow: 0 2px 4px rgba(37,99,235,0.2); }
+    .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .page-ellipsis { padding: 6px 8px; color: #94a3b8; font-weight: bold; }
+    /* --- DELETE MODE STYLES --- */
+    .delete-col { display: none; } /* Hidden by default */
+    .delete-mode-active .delete-col { display: table-cell; } /* Shown when active */
 </style>
 
 <div id="loginOverlay" style="position: fixed; inset: 0; background: #f8fafc; z-index: 9999; display: flex; align-items: center; justify-content: center;">
     <div class="card" style="width: 350px; text-align: center;">
         <h2>🔐 Manager Login</h2>
         <input type="password" id="adminPass" placeholder="Enter Password">
+        <div id="loginError" style="display:none; margin-top:10px; color:#dc2626; font-weight:600;">
+            ❌ Wrong password. Try again.
+        </div>
         <button class="btn" onclick="authenticate()">Access Dashboard</button>
     </div>
 </div>
@@ -99,7 +126,8 @@
 
     <div class="nav-tabs">
         <button class="tab-btn active" onclick="showTab('inventory')">📋 Master Inventory</button>
-        <button class="tab-btn" onclick="showTab('reports')">📑 Reports & Sheets</button>
+        <button class="tab-btn" onclick="showTab('stock-table')">🧾Stock Table</button>
+        <button class="tab-btn" onclick="showTab('reports')">📑 Reports</button>
         <button class="tab-btn" onclick="showTab('shipments')">📜 Shipment History</button>
         <button class="tab-btn" onclick="showTab('summary')">📦 Stock Visuals</button>
         <button class="tab-btn" onclick="showTab('analytics')">📈 Analytics</button>
@@ -108,7 +136,46 @@
     <div id="tab-inventory" class="section active">{% include 'tabs/inventory.html' %}</div>
     <div id="tab-reports" class="section">{% include 'tabs/reports.html' %}</div>
     <div id="tab-shipments" class="section"></div>
-    <div id="tab-summary" class="section">{% include 'tabs/summary.html' %}</div>
+    
+    <div id="tab-summary" class="section">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin-bottom: 15px;">Live Stock Visuals</h3>
+            <div class="view-toggle">
+                <button id="btn-view-brand" class="active" onclick="switchStockView('brand')">🏭 By Brand</button>
+                <button id="btn-view-size" onclick="switchStockView('size')">📏 By Size</button>
+            </div>
+        </div>
+
+        <div id="visualWarehouse"></div>
+
+        <h3 style="margin-top: 40px; color: #ef4444; border-bottom: 2px solid #fee2e2; padding-bottom: 10px;">
+            ⚠️ Old Stock Alert (> 20 Days)
+        </h3>
+        <div class="data-table-container">
+            <div class="table-responsive">
+                <table id="deadStockTable">
+                    <thead>
+                        <tr>
+                            <th>Brand</th>
+                            <th>Size</th>
+                            <th>Color</th>
+                            <th>Pressure</th>
+                            <th style="text-align: center;">Qty</th>
+                            <th style="text-align: right;">Days in Stock</th>
+                            <th style="text-align: center;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="deadStockBody">
+                        <tr><td colspan="7" style="text-align:center;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <button class="btn" style="width: auto; margin-top: 15px;" onclick="downloadSummaryCSV()">📥 Download CSV</button>
+    </div>
+    <div id="tab-stock-table" class="section">
+        {% include 'tabs/stock_table.html' %}
+    </div>
     <div id="tab-analytics" class="section">{% include 'tabs/analytics.html' %}</div>
 </div>
 
@@ -117,6 +184,7 @@
     let pollingInterval = null;
     let latestStockData = []; 
     let currentReportType = '';
+    let currentStockView = 'brand'; // Default view: By Brand
     
     document.addEventListener("DOMContentLoaded", () => {
         const today = new Date().toISOString().split('T')[0];
@@ -139,19 +207,28 @@
 
         try {
             const res = await fetch('/api/stats_summary', { headers });
-            if (res.status === 401) { if(!isAuto) showToast("Wrong Password!", true); return; }
+            if (res.status === 401) {
+            if (!isAuto) {
+                document.getElementById('loginError').style.display = 'block';
+                document.getElementById('adminPass').value = '';
+                document.getElementById('adminPass').focus();
+                showToast("Wrong Password!", true);
+            }
+            return;
+            }
+         
             
             if(!isAuto) {
                 const pass = document.getElementById('adminPass').value;
                 sessionStorage.setItem('admin_token', btoa("admin:" + pass));
             }
-
+            document.getElementById('loginError').style.display = 'none';
             AUTH_HEADER = headers;
             document.getElementById('loginOverlay').style.display = 'none';
             document.getElementById('mainDashboard').style.display = 'block';
             
             const data = await res.json();
-            updateDashboardUI(data);
+            updateDashboardUI(data); // Initial Load
 
             const requestedTab = sessionStorage.getItem('admin_active_tab');
             if (requestedTab) {
@@ -178,11 +255,11 @@
         }
     }
 
-    function goToInventory(brand, size, color) {
-        const params = new URLSearchParams({ brand: brand, size: size, color: color });
-        // Use window.location to stay in same tab if preferred, or open
-        window.location.href = `?${params.toString()}`;
-    }
+    function goToInventory(brand, size, color, pressure) {
+    // Instead of reloading the page, use your existing helper
+    // which handles the tab switch and dropdown selection properly.
+    viewIds(brand, size, color, pressure);
+}
 
     function startLiveUpdates() {
         if(pollingInterval) clearInterval(pollingInterval);
@@ -199,91 +276,208 @@
     }
 
     function showTab(tabId) {
-        // Hide all sections, then show the target one
+        // 1. Standard Tab Switching
         document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
         document.getElementById('tab-' + tabId).classList.add('active');
 
-        // Deactivate all tab buttons, then activate the clicked one
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-        document.querySelector(`.tab-btn[onclick="showTab('${tabId}')"]`).classList.add('active');
+        // Safety check in case the button code differs slightly
+        const activeBtn = document.querySelector(`.tab-btn[onclick="showTab('${tabId}')"]`);
+        if(activeBtn) activeBtn.classList.add('active');
 
-        // If the shipments tab is clicked, fetch its data
+        // --- NEW: Hide Header & KPIs for Stock Table to save space ---
+        const header = document.querySelector('.dashboard-header');
+        const kpis = document.querySelector('.kpi-row');
+        
+        if (tabId === 'stock-table') {
+            // Hide them
+            if(header) header.style.display = 'none';
+            if(kpis) kpis.style.display = 'none';
+        } else {
+            // Show them (Revert to CSS defaults)
+            if(header) header.style.display = ''; 
+            if(kpis) kpis.style.display = ''; 
+        }
+        // -------------------------------------------------------------
+
+        // Trigger specific data loads
         if (tabId === 'shipments') fetchShipmentHistory();
     }
+    // --- NEW FUNCTION: Switch Views ---
+    function switchStockView(mode) {
+        currentStockView = mode;
+        // Update Buttons Visual State
+        document.getElementById('btn-view-brand').classList.remove('active');
+        document.getElementById('btn-view-size').classList.remove('active');
+        document.getElementById('btn-view-' + mode).classList.add('active');
+        
+        // Re-render dashboard using last known data
+        if(latestStockData.length > 0) {
+            // Need to reconstruct the data object structure expected by updateDashboardUI
+            // but updateDashboardUI expects the full API response.
+            // We'll just call updateDashboardUI with a mock object containing latestStockData
+            updateDashboardUI({
+                stock_summary: latestStockData,
+                // Pass current values for KPIs so they don't disappear
+                total: document.getElementById('kpi-total').innerText,
+                stock: document.getElementById('kpi-stock').innerText,
+                dispatched: document.getElementById('kpi-dispatch').innerText,
+                production_chart: [] // Chart won't redraw on simple switch
+            });
+        }
+    }
 
-    // --- MAIN DASHBOARD UPDATE LOGIC ---
+    // --- UPDATED DASHBOARD LOGIC FOR SIZE/BRAND VIEWS ---
     function updateDashboardUI(data) {
         document.getElementById('kpi-total').innerText = data.total;
         document.getElementById('kpi-stock').innerText = data.stock;
         document.getElementById('kpi-dispatch').innerText = data.dispatched;
         
         latestStockData = data.stock_summary;
-
+        renderStockTableTab(latestStockData);
         const container = document.getElementById('visualWarehouse');
         if(container) {
             container.innerHTML = '';
-            let brands = {};
+            let groups = {};
+
+            // GROUPING LOGIC
             data.stock_summary.forEach(row => {
-                if(!brands[row.pipe_name]) brands[row.pipe_name] = [];
-                brands[row.pipe_name].push(row);
+                let key = '';
+                if (currentStockView === 'brand') {
+                    key = row.pipe_name; // Group by Brand Name
+                } else {
+                    key = row.size; // Group by Size
+                }
+                
+                if(!groups[key]) groups[key] = [];
+                groups[key].push(row);
             });
 
-            for(let [brand, items] of Object.entries(brands)) {
-                items.sort((a,b) => parseInt(a.size) - parseInt(b.size));
-                let shelfHtml = `<div class="brand-shelf"><div class="brand-title"><span>🏭 ${brand}</span> <span style="font-size:0.9rem; opacity:0.6;">${items.length} Variants</span></div><div class="pipe-grid">`;
-                items.forEach(item => {
-                    let sizeInt = parseInt(item.size);
-                    let visualSize = 40 + (sizeInt / 4); 
-                    if(visualSize > 90) visualSize = 90; 
-                    let borderColor = item.color.toLowerCase().includes('blue') ? '#2563eb' : '#64748b';
-                    let isLow = item.stock < 20;
-                    let glowClass = isLow ? 'low-stock-glow' : '';
-                    shelfHtml += `
-                    <div class="pipe-card" onclick="goToInventory('${item.pipe_name}', '${item.size}', '${item.color}')">
-                        <div class="pipe-visual ${glowClass}" style="width:${visualSize}px; height:${visualSize}px; border-width:6px; border-color:${borderColor};">
-                            ${item.stock}
-                        </div>
-                        <div style="font-weight:700; font-size:0.9rem; color:#334155;">${item.size}</div>
-                        <div style="font-size:0.8rem; font-weight:700; color:${borderColor};">${item.color}</div>
-                        ${isLow ? '<div style="color:red; font-size:0.7rem; font-weight:bold; margin-top:5px;">⚠️ LOW</div>' : ''}
-                    </div>`;
-                });
+            // RENDERING LOGIC
+            // Convert to array to sort keys
+            let sortedKeys = Object.keys(groups);
+            
+            if(currentStockView === 'size') {
+                // Numeric Sort for Sizes
+                sortedKeys.sort((a,b) => parseInt(a) - parseInt(b));
+            } else {
+                // Alpha Sort for Brands
+                sortedKeys.sort();
+            }
+
+            for(let groupTitle of sortedKeys) {
+                let items = groups[groupTitle];
+
+                // Sorting items inside the shelf
+                if(currentStockView === 'brand') {
+                    // Inside Brand Shelf: Sort by Size
+                    items.sort((a,b) => parseInt(a.size) - parseInt(b.size));
+                } else {
+                    // Inside Size Shelf: Sort by Brand Name
+                    items.sort((a,b) => a.pipe_name.localeCompare(b.pipe_name));
+                }
+
+                let displayTitle = (currentStockView === 'brand') 
+                    ? `🏭 ${groupTitle}` 
+                    : `📏 ${groupTitle}`;
+
+                let shelfHtml = `<div class="brand-shelf"><div class="brand-title"><span>${displayTitle}</span> <span style="font-size:1.1rem; opacity:0.6;">${items.length} Variants</span></div><div class="pipe-grid">`;
+                
+                    // --- REPLACE FROM HERE ---
+            items.forEach(item => {
+                let visualSize = 65; 
+                let borderColor = item.color.toLowerCase().includes('blue') ? '#2563eb' : '#64748b';
+                let isLow = item.stock < 50;
+                let glowClass = isLow ? 'low-stock-glow' : '';
+                
+                // Determine what text to show in the card header
+                let cardMainText = (currentStockView === 'brand') ? item.size : item.pipe_name;
+
+                // Format the new data safely
+                let pressureText = item.pressure_class ? item.pressure_class : '';
+                let avgWt = item.avg_weight ? parseFloat(item.avg_weight).toFixed(3) : '0.000';
+                
+                shelfHtml += `
+                <div class="pipe-card" onclick="goToInventory('${item.pipe_name}', '${item.size}', '${item.color}', '${item.pressure_class || ''}')">
+                    
+                    <div class="pipe-visual ${glowClass}" style="width:${visualSize}px; height:${visualSize}px; border-width:6px; border-color:${borderColor}; font-size: 1.5rem;">
+                        ${item.stock}
+                    </div>
+                    
+                    <div style="font-weight:700; font-size:1.1rem; color:#334155; line-height: 1.2;">${cardMainText}</div>
+                    
+                    <div style="font-weight:700; font-size:0.9rem; color:#ef4444; margin: 2px 0;">${pressureText}</div>
+
+                    <div style="font-size:0.9rem; font-weight:700; color:${borderColor};">${item.color}</div>
+                    
+                    <div style="font-size: 0.75rem; color: #64748b; margin-top: 6px; border-top: 1px solid #e2e8f0; padding-top: 4px;">
+                        Avg: <b>${avgWt}</b> kg
+                    </div>
+
+                    ${isLow ? '<div style="color:red; font-size:0.8rem; font-weight:bold; margin-top:5px;">⚠️ LOW</div>' : ''}
+                </div>`;
+            });
+            // --- TO HERE ---
                 shelfHtml += `</div></div>`;
                 container.innerHTML += shelfHtml;
             }
         }
 
-        const sBody = document.getElementById('summaryBody');
-        if(sBody) {
-            sBody.innerHTML = '';
-            data.stock_summary.forEach(row => {
-                let badgeClass = row.stock < 20 ? 'bg-red' : 'bg-blue';
-                let statusText = row.stock === 0 ? 'Empty' : (row.stock < 20 ? 'Low' : 'OK');
-                sBody.innerHTML += `<tr><td><b>${row.pipe_name}</b></td><td>${row.size}</td><td>${row.color}</td><td style="font-weight:bold;">${row.stock}</td><td><span class="status-badge ${badgeClass}">${statusText}</span></td></tr>`;
-            });
+        // --- NEW: RENDER DEAD STOCK TABLE ---
+        const dBody = document.getElementById('deadStockBody');
+        if (dBody && data.dead_stock) {
+            dBody.innerHTML = '';
+            
+            if (data.dead_stock.length === 0) {
+                dBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#10b981; font-weight:bold; padding: 20px;">🎉 Great job! No dead stock found.</td></tr>';
+            } else {
+                data.dead_stock.forEach(row => {
+                    let pressure = row.pressure_class ? row.pressure_class : '-';
+                    
+                    dBody.innerHTML += `
+                        <tr style="background-color: #f8fafc;">
+                            <td style="font-weight:bold; color:#334155;">${row.pipe_name}</td>
+                            <td>${row.size}</td>
+                            <td>${row.color}</td>
+                            <td style="font-weight:600; color:#64748b;">${pressure}</td>
+                            <td style="text-align:center; font-weight:bold; font-size: 1.1rem; color: #4B576A;">${row.qty}</td>
+                            <td style="text-align:right; font-weight:bold; color:#ef4444;">⏳ ${row.days_old} Days</td>
+                            <td style="text-align:center;">
+                                <a href="javascript:void(0)" 
+                                   onclick="openDeadStockWindow('${row.pipe_name}', '${row.size}', '${row.color}', '${row.pressure_class || ''}')"
+                                   style="color: #2563eb; text-decoration: underline; font-weight: 600; font-size: 0.9rem;">
+                                   View IDs ↗
+                                </a>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
         }
         
         // --- ANALYTICS CHART UPDATE ---
-        if(window.myChart) window.myChart.destroy();
-        const ctx = document.getElementById('prodChart').getContext('2d');
-        window.myChart = new Chart(ctx, {
-            type: 'line', 
-            data: { 
-                labels: data.production_chart.map(d => d.day), 
-                datasets: [{ 
-                    label: 'Production', 
-                    data: data.production_chart.map(d => d.count), 
-                    borderColor: '#2563eb', 
-                    tension: 0.3, 
-                    fill: true, 
-                    backgroundColor: 'rgba(37,99,235,0.1)' 
-                }] 
-            }, 
-            options: { responsive: true, maintainAspectRatio: false }
-        });
+        if(data.production_chart && data.production_chart.length > 0) {
+            if(window.myChart) window.myChart.destroy();
+            const ctx = document.getElementById('prodChart').getContext('2d');
+            window.myChart = new Chart(ctx, {
+                type: 'line', 
+                data: { 
+                    labels: data.production_chart.map(d => d.day), 
+                    datasets: [{ 
+                        label: 'Production', 
+                        data: data.production_chart.map(d => d.count), 
+                        borderColor: '#2563eb', 
+                        tension: 0.3, 
+                        fill: true, 
+                        backgroundColor: 'rgba(37,99,235,0.1)' 
+                    }] 
+                }, 
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
     }
 
-    // --- A. FUNCTIONS FOR SUMMARY TAB ---
+    // --- SUMMARY TAB FUNCTIONS ---
     function printSummary() {
         const content = document.getElementById('summaryTable').outerHTML;
         printContent(content, "Detailed Stock Summary");
@@ -307,7 +501,7 @@
         }
     }
 
-    // --- B. FUNCTIONS FOR INVENTORY TAB ---
+    // --- INVENTORY TAB FUNCTIONS ---
     function printInventory() {
         const content = document.getElementById('masterTable').outerHTML;
         const filters = `Brand: ${document.getElementById('f_name').value || 'All'} | Size: ${document.getElementById('f_size').value || 'All'} | Color: ${document.getElementById('f_color').value || 'All'} | Status: ${document.getElementById('f_status').value || 'All'}`;
@@ -319,15 +513,14 @@
             name: document.getElementById('f_name').value,
             size: document.getElementById('f_size').value,
             color: document.getElementById('f_color').value,
+            pressure: document.getElementById('f_pressure').value,
             status: document.getElementById('f_status').value,
             start: document.getElementById('f_start').value,
-            // Add report-specific params if needed for other downloads
             report_type: currentReportType,
             date: document.getElementById('rep_date').value,
             time_range: document.getElementById('rep_range').value,
             grouped: (currentReportType === 'production') ? 'true' : 'false'
         });
-        // Use the new secure download function
         downloadFileWithAuth(`/api/export?${params}`, 'report.csv');
     }
 
@@ -361,108 +554,960 @@
     }
 
     // --- FETCH INVENTORY ---
-    async function fetchInventory() {
+    // --- GLOBAL VARIABLES ---
+    let currentInventoryData = []; 
+    let isDetailMode = false;      
+
+    // 1. MAIN FETCH FUNCTION
+    let currentPage = 1; // Tracks our active page
+
+    // 1. MAIN FETCH FUNCTION (Now accepts a target page)
+    async function fetchInventory(targetPage = 1) {
+        currentPage = targetPage; // Update global state
+        
+        const brandVal = document.getElementById('f_name').value;
+        const sizeVal = document.getElementById('f_size').value;
+        
         const params = new URLSearchParams({
-            name: document.getElementById('f_name').value,
-            size: document.getElementById('f_size').value,
+            name: brandVal,
+            size: sizeVal,
             color: document.getElementById('f_color').value,
+            pressure: document.getElementById('f_pressure').value,
             status: document.getElementById('f_status').value,
-            start: document.getElementById('f_start').value
+            date: document.getElementById('f_start').value,
+            page: currentPage,    // NEW: Send current page
+            per_page: 100         // NEW: Load 100 items at a time
         });
-        const res = await fetch(`/api/inventory?${params}`, { headers: AUTH_HEADER });
-        const data = await res.json();
-        const tbody = document.getElementById('masterBody'); 
-        if(tbody) {
-            tbody.innerHTML = '';
-            if(data.length === 0) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">No records.</td></tr>'; return; }
-            data.forEach(row => {
-                let status = row.dispatched_at 
-                    ? `<span class="status-dispatch">Sent: ${row.dispatched_at.slice(11,16)}</span>` 
-                    : `<span class="status-stock">Stock</span>`;
+
+        let useServerGrouping = (brandVal !== '' || sizeVal !== '');
+        if (useServerGrouping) params.append('grouped', 'true');
+
+        const tbodySummary = document.getElementById('invSummaryBody');
+        const tbodyDetail = document.getElementById('masterBody');
+        
+        if (!useServerGrouping) {
+             tbodyDetail.innerHTML = '<tr><td colspan="9" style="text-align:center;">Loading Page ' + currentPage + '...</td></tr>';
+        } else {
+             if(tbodySummary) tbodySummary.innerHTML = '<tr><td colspan="6" style="text-align:center;">Loading...</td></tr>';
+        }
+
+        try {
+            const res = await fetch(`/api/inventory?${params}`, { headers: AUTH_HEADER });
+            const responseData = await res.json();
+
+            if (!useServerGrouping) {
+                // PAGINATION MODE (responseData is now an object containing items and page info)
+                currentInventoryData = responseData.items; 
+                isDetailMode = false; 
+                renderDetailTable(responseData.items, true); 
+                updatePaginationUI(responseData.page, responseData.total_pages, responseData.total);
+            } else {
+                // SUMMARY MODE (responseData is a flat array)
+                currentInventoryData = responseData; 
+                isDetailMode = false; 
+                let mode = 'default';
+                if (brandVal !== '' && sizeVal === '') mode = 'size_centric';
+                else if (sizeVal !== '' && brandVal === '') mode = 'brand_centric';
                 
-                tbody.innerHTML += `<tr><td>#${String(row.id).padStart(4,'0')}</td><td>${row.pipe_name}</td><td>${row.size}</td><td>${row.color}</td><td>${(row.weight_g).toFixed(3)}</td><td>${row.operator}</td><td>${row.created_at.slice(0,16)}</td><td>${status}</td></tr>`;
-            });
+                renderSummaryTable(responseData, mode, true);
+                const pagControls = document.getElementById('pagination-controls');
+                if (pagControls) {
+                    pagControls.style.display = 'none';
+                }
+            }
+        } catch(e) { console.error(e); }
+    }
+
+    // --- NEW PAGINATION HELPERS ---
+    // --- GOOGLE-STYLE PAGINATION HELPERS ---
+    function updatePaginationUI(page, totalPages, totalRecords) {
+        const controls = document.getElementById('pagination-controls');
+        if (!controls) return;
+        
+        controls.style.display = 'flex';
+        controls.innerHTML = ''; // Clear existing buttons
+
+        // 1. Info Text (Total records)
+        let info = document.createElement('div');
+        info.style.width = '100%';
+        info.style.textAlign = 'center';
+        info.style.marginBottom = '10px';
+        info.style.color = '#64748b';
+        info.style.fontSize = '0.85rem';
+        info.innerHTML = `Showing page <b>${page}</b> of <b>${totalPages}</b> <span style="margin-left:10px;">(Total: ${totalRecords} pipes)</span>`;
+        controls.appendChild(info);
+
+        // 2. "Previous" Button
+        let prevBtn = document.createElement('button');
+        prevBtn.className = 'page-btn';
+        prevBtn.innerText = '« Prev';
+        prevBtn.disabled = (page <= 1);
+        prevBtn.onclick = () => fetchInventory(page - 1);
+        controls.appendChild(prevBtn);
+
+        // 3. Page Numbers Logic (e.g., 1 ... 4 5 6 ... 10)
+        let startPage = Math.max(1, page - 2);
+        let endPage = Math.min(totalPages, page + 2);
+
+        if (startPage > 1) {
+            controls.appendChild(createPageBtn(1, page));
+            if (startPage > 2) {
+                let ell = document.createElement('span');
+                ell.className = 'page-ellipsis'; ell.innerText = '...';
+                controls.appendChild(ell);
+            }
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            controls.appendChild(createPageBtn(i, page));
+        }
+
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                let ell = document.createElement('span');
+                ell.className = 'page-ellipsis'; ell.innerText = '...';
+                controls.appendChild(ell);
+            }
+            controls.appendChild(createPageBtn(totalPages, page));
+        }
+
+        // 4. "Next" Button
+        let nextBtn = document.createElement('button');
+        nextBtn.className = 'page-btn';
+        nextBtn.innerText = 'Next »';
+        nextBtn.disabled = (page >= totalPages);
+        nextBtn.onclick = () => fetchInventory(page + 1);
+        controls.appendChild(nextBtn);
+    }
+
+    // Helper to generate individual number buttons
+    function createPageBtn(pageNum, currentPage) {
+        let btn = document.createElement('button');
+        btn.className = 'page-btn' + (pageNum === currentPage ? ' active' : '');
+        btn.innerText = pageNum;
+        btn.onclick = () => fetchInventory(pageNum);
+        return btn;
+    }
+
+    function changePage(direction) {
+        fetchInventory(currentPage + direction);
+    }
+    // 2. RENDER SUMMARY (With Color Totals Row)
+    function renderSummaryTable(data, mode) {
+        document.getElementById('inv-summary-view').style.display = 'block';
+        document.getElementById('inv-detail-view').style.display = 'none';
+        
+        const thead = document.getElementById('invSummaryHead');
+        const tbody = document.getElementById('invSummaryBody');
+        tbody.innerHTML = '';
+
+        // --- A. UPDATE BIG FONT HEADER ---
+        const brandVal = document.getElementById('f_name').value;
+        const sizeVal = document.getElementById('f_size').value;
+        const colorVal = document.getElementById('f_color').value;
+
+        let titleParts = [];
+        if(brandVal) titleParts.push(brandVal);
+        if(sizeVal) titleParts.push(sizeVal);
+        if(colorVal) titleParts.push(colorVal);
+
+        const displayTitle = titleParts.length > 0 ? titleParts.join(" • ") : "All Stock";
+        const titleEl = document.getElementById('summary-active-filters');
+        if(titleEl) titleEl.innerText = displayTitle;
+
+        if(data.length === 0) { 
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No records found.</td></tr>'; 
+            return; 
+        }
+
+        let groups = {};
+        let totalColSpan = 3; 
+
+        // --- B. DYNAMIC HEADERS & GROUPING ---
+        if (mode === 'size_centric') {
+            thead.innerHTML = `<tr><th>Size</th><th>Color</th><th style="text-align:center;">Quantity</th><th style="text-align:right;">Total Wt (kg)</th><th>Action</th></tr>`;
+            totalColSpan = 2; 
+        } else if (mode === 'brand_centric') {
+            thead.innerHTML = `<tr><th>Brand</th><th>Color</th><th style="text-align:center;">Quantity</th><th style="text-align:right;">Total Wt (kg)</th><th>Action</th></tr>`;
+            totalColSpan = 2; 
+        } else {
+            thead.innerHTML = `<tr><th>Brand</th><th>Size</th><th>Color</th><th style="text-align:center;">Quantity</th><th style="text-align:right;">Total Wt (kg)</th><th>Action</th></tr>`;
+            totalColSpan = 3; 
+        }
+
+        data.forEach(item => {
+            let key = '';
+            if(mode === 'size_centric') key = `${item.size}|${item.color}`;
+            else if(mode === 'brand_centric') key = `${item.pipe_name}|${item.color}`;
+            else key = `${item.pipe_name}|${item.size}|${item.color}`;
+
+            if(!groups[key]) {
+                groups[key] = { 
+                    brand: item.pipe_name, size: item.size, color: item.color, 
+                    count: 0, weight: 0 
+                };
+            }
+            
+            // THE FIX: Check if the server already counted it. If yes, use the server's count. 
+            // If no (raw data), count it as 1.
+            groups[key].count += (item.count !== undefined ? item.count : 1);
+            groups[key].weight += (item.total_weight !== undefined ? item.total_weight : (item.weight_g || 0));
+        });
+
+        // --- C. RENDER ROWS & CALCULATE TOTALS ---
+        let grandTotalQty = 0;
+        let grandTotalWt = 0;
+        let colorTotals = {}; // Store totals per color
+
+        Object.values(groups).forEach(g => {
+            let totalKg = (g.weight).toFixed(3);
+            grandTotalQty += g.count;
+            grandTotalWt += g.weight;
+
+            // Aggregate Color Totals
+            if (!colorTotals[g.color]) {
+                colorTotals[g.color] = { count: 0, weight: 0 };
+            }
+            colorTotals[g.color].count += g.count;
+            colorTotals[g.color].weight += g.weight;
+
+            let row = '';
+            // Generate Row HTML based on mode
+            if (mode === 'size_centric') {
+                row = `<tr>
+                        <td><a href="javascript:void(0)" onclick="drillDown('${g.brand}', '${g.size}', '${g.color}')" style="color: #2563eb; font-weight: bold; text-decoration: underline;">${g.size}</a></td>
+                        <td>${g.color}</td>
+                        <td style="text-align:center; font-weight:bold;">${g.count}</td>
+                        <td style="text-align:right;">${totalKg}</td>
+                        <td><button class="btn" style="padding:5px 10px; font-size:0.8rem; width:auto; background:#cbd5e1; color:#333;" onclick="drillDown('${g.brand}', '${g.size}', '${g.color}')">Ids</button></td>
+                       </tr>`;
+            } else if (mode === 'brand_centric') {
+                row = `<tr>
+                        <td><a href="javascript:void(0)" onclick="drillDown('${g.brand}', '${g.size}', '${g.color}')" style="color: #2563eb; font-weight: bold; text-decoration: underline;">${g.brand}</a></td>
+                        <td>${g.color}</td>
+                        <td style="text-align:center; font-weight:bold;">${g.count}</td>
+                        <td style="text-align:right;">${totalKg}</td>
+                        <td><button class="btn" style="padding:5px 10px; font-size:0.8rem; width:auto; background:#cbd5e1; color:#333;" onclick="drillDown('${g.brand}', '${g.size}', '${g.color}')">Ids</button></td>
+                       </tr>`;
+            } else {
+                row = `<tr>
+                        <td style="font-weight:bold;">${g.brand}</td>
+                        <td><a href="javascript:void(0)" onclick="drillDown('${g.brand}', '${g.size}', '${g.color}')" style="color: #2563eb; font-weight: bold; text-decoration: underline;">${g.size}</a></td>
+                        <td>${g.color}</td>
+                        <td style="text-align:center; font-weight:bold;">${g.count}</td>
+                        <td style="text-align:right;">${totalKg}</td>
+                        <td><button class="btn" style="padding:5px 10px; font-size:0.8rem; width:auto; background:#cbd5e1; color:#333;" onclick="drillDown('${g.brand}', '${g.size}', '${g.color}')">Ids</button></td>
+                       </tr>`;
+            }
+            tbody.innerHTML += row;
+        });
+
+        // --- D. COLOR WISE TOTAL ROW ---
+        let colorStrings = [];
+        Object.keys(colorTotals).sort().forEach(color => {
+            let c = colorTotals[color];
+            // Format: Blue: 10 (50kg)
+            colorStrings.push(`<span style="margin-right:15px;">${color}: <b>${c.count}</b> <span style="color:#64748b; font-size:0.9em;">(${c.weight.toFixed(1)}kg)</span></span>`);
+        });
+        
+        if (colorStrings.length > 0) {
+            tbody.innerHTML += `
+                <tr style="background-color: #f8fafc; border-top: 2px solid #e2e8f0;">
+                    <td colspan="${totalColSpan}" style="text-align: right; padding-right: 15px; font-weight:bold; color:#64748b;">Color Wise:</td>
+                    <td colspan="3" style="text-align: left; font-weight:bold; color:#334155;">
+                        ${colorStrings.join(" | ")}
+                    </td>
+                </tr>
+            `;
+        }
+
+        // --- E. GRAND TOTAL ROW ---
+        tbody.innerHTML += `
+            <tr style="background-color: #f1f5f9; font-weight: bold; border-top: 2px solid #cbd5e1;">
+                <td colspan="${totalColSpan}" style="text-align: right; padding-right: 15px;">GRAND TOTAL:</td>
+                <td style="text-align: center; font-size: 1.1rem; color: #2563eb;">${grandTotalQty}</td>
+                <td style="text-align: right; font-size: 1.1rem; color: #2563eb;">${(grandTotalWt).toFixed(3)}</td>
+                <td></td>
+            </tr>
+        `;
+    }
+
+    // 3. DRILL DOWN FUNCTION
+    // 3. UPDATED DRILL DOWN FUNCTION (Fetches specific IDs from backend)
+    async function drillDown(brand, size, color, targetPressure = null) {
+        isDetailMode = true;
+        
+        // 1. Set up the UI and show a loading message
+        document.getElementById('inv-summary-view').style.display = 'none';
+        document.getElementById('inv-detail-view').style.display = 'block';
+        document.getElementById('masterTable').style.display = 'table'; // Safety net to ensure table is visible
+        document.getElementById('detail-nav-header').style.display = 'flex';
+        
+        // Update Title to include pressure if it's passed from the chart
+        let title = `📄 ${brand} ${size} ${color}`;
+        if (targetPressure) title += ` (${targetPressure})`;
+        document.getElementById('detail-view-title').innerText = title;
+        
+        document.getElementById('masterBody').innerHTML = '<tr><td colspan="10" style="text-align:center;">Fetching IDs from server...</td></tr>';
+
+        // 2. THE FIX: Get the pressure from the chart click OR the dropdown
+        const activePressure = targetPressure || document.getElementById('f_pressure').value;
+
+        // 3. Ask the backend for just this specific Brand, Size, Color AND Pressure
+        const params = new URLSearchParams({
+            name: brand,
+            size: size,
+            color: color,
+            pressure: activePressure, // <-- Added pressure filter here!
+            status: document.getElementById('f_status').value, // Respect "In Stock" vs "Dispatched"
+            grouped: 'false',
+            page: 1,           // Always start on page 1 for drill-down
+            per_page: 1000     // Load a big chunk so you can see them all at once
+        });
+
+        try {
+            const res = await fetch(`/api/inventory?${params}`, { headers: AUTH_HEADER });
+            const freshData = await res.json();
+            
+            // 3. Render the fetched items (Make sure to use .items because of pagination format)
+            renderDetailTable(freshData.items, false);
+            
+            // 4. Hide pagination controls for this specific drill-down view
+            const paginationEl = document.getElementById('pagination-controls');
+            if (paginationEl) paginationEl.style.display = 'none';
+
+        } catch(e) {
+            console.error(e);
+            alert("Failed to load details.");
+            document.getElementById('masterBody').innerHTML = '<tr><td colspan="10" style="text-align:center; color:red;">Error loading data.</td></tr>';
         }
     }
 
-    // ... Reports Logic ...
+    // 4. RENDER DETAIL TABLE
+    function renderDetailTable(data, isMainView) {
+        document.getElementById('inv-summary-view').style.display = 'none';
+        document.getElementById('inv-detail-view').style.display = 'block';
+
+        const navHeader = document.getElementById('detail-nav-header');
+        
+        // THE FIX: Hide the ENTIRE header (including Reject button) on the main view
+        if (isMainView) {
+            if (navHeader) navHeader.style.display = 'none'; 
+        } else {
+            // Only show it when drilling down
+            if (navHeader) navHeader.style.display = 'flex'; 
+        }
+
+        const tbody = document.getElementById('masterBody');
+        tbody.innerHTML = '';
+
+        if(data.length === 0) { 
+            tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;">No records.</td></tr>'; 
+            return; 
+        }
+
+        // ... (the rest of the data.forEach logic stays exactly the same) ...
+        data.forEach(row => {
+            let statusHtml = "";
+
+            // 1. Is it Rejected?
+            if (row.dispatched_by === 'rejected') {
+                statusHtml = `<span style="background:#fee2e2; color:#ef4444; padding:3px 8px; border-radius:6px; font-weight:700; font-size:0.85rem;">Rejected</span>`;
+            
+            // 2. Or is it Dispatched? (Show Challan or Time)
+            } else if (row.dispatched_at) {
+                let dispatchInfo = "";
+                if (row.challan_no) {
+                    dispatchInfo = `<span style="font-weight:700;">CH: ${row.challan_no}</span>`;
+                } else {
+                    dispatchInfo = `Time: ${row.dispatched_at.slice(11, 16)}`;
+                }
+                statusHtml = `<span class="status-dispatch" title="Dispatched at ${row.dispatched_at}">${dispatchInfo}</span>`;
+            
+            // 3. Otherwise, it's in Stock
+            } else {
+                statusHtml = `<span class="status-stock">Stock</span>`;
+            }
+
+            tbody.innerHTML += `
+                <tr>
+                    <td class="delete-col" style="text-align: center;">
+                        <input type="checkbox" class="row-checkbox" value="${row.id}" onchange="updateDeleteButtonState()" style="transform: scale(1.2); cursor: pointer;">
+                    </td>
+                    
+                    <td>#${String(row.id).padStart(4,'0')}</td>
+                    <td>${row.pipe_name}</td>
+                    <td>${row.size}</td>
+                    <td>${row.color}</td>
+                    <td style="font-weight:bold; color:#64748b;">${row.pressure_class || '-'}</td>
+                    <td>${(row.weight_g).toFixed(3)}</td>
+                    <td>${row.operator || '-'}</td>
+                    <td>${row.created_at.slice(0,16)}</td>
+                    
+                    <td>${statusHtml}</td>
+                </tr>`;
+        });
+    }
+
+    // 5. BACK BUTTON
+    function backToSummary() {
+        // Exit delete mode safely if it's active
+        if (typeof isDeleteMode !== 'undefined' && isDeleteMode) {
+            toggleDeleteMode(); 
+        }
+        fetchInventory();
+    }
+    // --- REPORTS LOGIC ---
     async function previewReport(type) {
         currentReportType = type;
         const date = document.getElementById('rep_date').value;
         const range = document.getElementById('rep_range').value;
-        let grouped = (type === 'production') ? 'true' : 'false';
+        
+        let grouped = 'true'; 
         const params = new URLSearchParams({ report_type: type, date: date, time_range: range, grouped: grouped });
-        const res = await fetch(`/api/inventory?${params}`, { headers: AUTH_HEADER });
-        const data = await res.json();
-        const container = document.getElementById('reportPreviewContainer');
-        const thead = document.getElementById('reportHead');
-        const tbody = document.getElementById('reportBody');
-        document.getElementById('reportTitle').innerText = (type === 'production' ? 'Production Summary' : 'Dispatch Log');
-        container.style.display = 'block';
-        tbody.innerHTML = '';
-        if(type === 'production') {
+        
+        try {
+            const res = await fetch(`/api/inventory?${params}`, { headers: AUTH_HEADER });
+            let data = await res.json();
+            
+            const container = document.getElementById('reportPreviewContainer');
+            const thead = document.getElementById('reportHead');
+            const tbody = document.getElementById('reportBody');
+            
+            document.getElementById('reportTitle').innerText = (type === 'production' ? '📊 Production Summary' : '🚚 Dispatch Summary');
+            container.style.display = 'block';
+            tbody.innerHTML = '';
+
+            // --- CLIENT SIDE GROUPING FALLBACK ---
+            if(data.length > 0 && data[0].count === undefined) {
+                let groups = {};
+                data.forEach(item => {
+                    let key = `${item.pipe_name}_${item.size}_${item.color}`;
+                    if(!groups[key]) {
+                        groups[key] = { 
+                            pipe_name: item.pipe_name, 
+                            size: item.size, 
+                            color: item.color, 
+                            count: 0, 
+                            total_weight: 0 
+                        };
+                    }
+                    groups[key].count += 1;
+                    groups[key].total_weight += (item.weight_g || 0);
+                });
+                data = Object.values(groups);
+            }
+
             thead.innerHTML = `<tr><th>Brand</th><th>Size</th><th>Color</th><th style="text-align:center;">Quantity</th><th style="text-align:right;">Total Wt (Kg)</th><th style="text-align:right;">Avg Wt (Kg)</th></tr>`;
+            
             let grandTotalQty = 0; let grandTotalWt = 0;
-            if(data.length === 0) { tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">No production found.</td></tr>`; return; }
+            
+            if(data.length === 0) { tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">No records found.</td></tr>`; return; }
+            
             data.forEach(r => {
-                grandTotalQty += r.count; grandTotalWt += r.total_weight; // total_weight is in grams
-                tbody.innerHTML += `<tr><td style="font-weight:bold;">${r.pipe_name}</td><td>${r.size}</td><td>${r.color}</td><td style="text-align:center; font-weight:bold;">${r.count}</td><td style="text-align:right;">${(r.total_weight).toFixed(3)}</td><td style="text-align:right; color:#64748b;">${(r.avg_weight).toFixed(3)}</td></tr>`;
+                let qty = r.count || 0;
+                let wt = r.total_weight || 0;
+                
+                grandTotalQty += qty; 
+                grandTotalWt += wt; 
+                
+                tbody.innerHTML += `<tr><td style="font-weight:bold;">${r.pipe_name}</td><td>${r.size}</td><td>${r.color}</td><td style="text-align:center; font-weight:bold;">${qty}</td><td style="text-align:right;">${(wt).toFixed(3)}</td><td style="text-align:right; color:#64748b;">${(qty>0 ? (wt/qty).toFixed(3) : 0)}</td></tr>`;
             });
+            
             tbody.innerHTML += `<tr style="background:#f1f5f9; font-weight:bold; border-top:2px solid #cbd5e1;"><td colspan="3" style="text-align:right;">GRAND TOTAL:</td><td style="text-align:center;">${grandTotalQty}</td><td style="text-align:right;">${(grandTotalWt).toFixed(3)}</td><td></td></tr>`;
-        } else {
-            thead.innerHTML = `<tr><th>ID</th><th>Brand</th><th>Size</th><th>Color</th><th>Wt (kg)</th><th>Dispatched At</th><th>By</th></tr>`;
-            if(data.length === 0) { tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">No dispatch records.</td></tr>`; return; }
-            data.forEach(r => {
-                tbody.innerHTML += `<tr><td>${r.id}</td><td>${r.pipe_name}</td><td>${r.size}</td><td>${r.color}</td><td>${(r.weight_g).toFixed(3)}</td><td>${r.dispatched_at.slice(11,16)}</td><td>${r.dispatched_by}</td></tr>`;
-            });
+            
+        } catch(e) { 
+            console.error(e); 
+            alert("Error loading report data."); 
         }
     }
 
-    // --- C. FUNCTIONS FOR SHIPMENT HISTORY TAB ---
+    // --- SHIPMENT HISTORY LOGIC (SEARCH + DATE FILTER + TOTALS) ---
     async function fetchShipmentHistory() {
         const container = document.getElementById('tab-shipments');
-        // Prevent re-fetching if already loaded
+        
         if(container.innerHTML.trim() !== '') return;
 
-        container.innerHTML = `<div class="data-table-container"><div class="table-responsive"><table id="shipmentHistoryTable"><thead></thead><tbody><tr><td colspan="9" style="text-align:center;">Loading...</td></tr></tbody></table></div></div>`;
+        container.innerHTML = `
+        
+            <div class="filter-bar" style="margin-bottom: 1rem; display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
+                <input type="text" id="shipmentSearch" onkeyup="filterShipments()" 
+                       placeholder="🔍 Search ID, Challan..." 
+                       style="flex: 1; min-width: 150px; padding: 10px; border: 1px solid #ccc; border-radius: 6px;">
+                
+                <input type="date" id="historyDateFilter" onchange="filterHistoryByDate('date')" 
+                       style="padding: 9px; border: 1px solid #ccc; border-radius: 6px;">
+
+                <button class="btn" style="width:auto; padding:9px 12px; font-size:0.85rem; background:#64748b;" onclick="filterHistoryByDate('3')">3 Days</button>
+                <button class="btn" style="width:auto; padding:9px 12px; font-size:0.85rem; background:#64748b;" onclick="filterHistoryByDate('7')">Week</button>
+                <button class="btn" style="width:auto; padding:9px 12px; font-size:0.85rem; background:#64748b;" onclick="filterHistoryByDate('30')">Month</button>
+                <button class="btn" style="width:auto; padding:9px 12px; font-size:0.85rem; background:#ef4444;" onclick="filterHistoryByDate('all')">Clear</button>
+                <div class="d-flex justify-content-end align-items-center
+                    mb-3 pt-3 pb-2 px-3
+                    bg-white border-bottom shadow-sm rounded">
+                    <a href="/admin/returns"
+                        class="btn btn-outline-danger shadow-sm d-flex align-items-center gap-2">
+                            <span>📜</span>
+                            <span>View Return Vouchers</span>
+                    </a>
+                </div>
+                <div style="margin-left:auto; background:#eff6ff; color:#1d4ed8; padding:8px 15px; border-radius:20px; font-weight:bold; border:1px solid #bfdbfe; white-space:nowrap;">
+                    Total Pipes: <span id="totalVisiblePipes" style="font-size:1.1rem;">0</span>
+                </div>
+            </div>
+
+            <div class="data-table-container">
+                <div class="table-responsive">
+                    <table id="shipmentHistoryTable">
+                        <thead></thead>
+                        <tbody><tr><td colspan="6" style="text-align:center;">Loading...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>`;
+
         const thead = container.querySelector('thead');
         const tbody = container.querySelector('tbody');
 
-        thead.innerHTML = `<tr><th>ID</th><th>Challan No.</th><th>Customer</th><th>Address</th><th>Mobile</th><th>Vehicle</th><th>Date</th><th class="text-center">Pipes</th><th class="text-end">Weight (kg)</th></tr>`;
+        thead.innerHTML = `<tr><th>ID</th><th>Challan No.</th><th>Vehicle</th><th>Date</th><th class="text-center">Pipes</th><th class="text-end">Weight (kg)</th></tr>`;
         
         try {
             const res = await fetch('/api/admin/shipments', { headers: AUTH_HEADER });
             const data = await res.json();
             tbody.innerHTML = '';
-            if(data.length === 0) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">No shipment history found.</td></tr>'; return; }
+            
+            if(data.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No shipment history found.</td></tr>'; return; }
             
             data.forEach(shipment => {
                 const date = new Date(shipment.created_at).toLocaleString();
                 const row = `
-                    <tr>
-                        <td>#${shipment.id}</td><td><a href="/shipment/${shipment.id}" target="_blank" title="View Shipment Details"><strong>${shipment.challan_no || 'N/A'}</strong></a></td><td><strong>${shipment.customer_name}</strong></td><td>${shipment.customer_address || 'N/A'}</td><td>${shipment.customer_mobile || 'N/A'}</td><td>${shipment.vehicle_no}</td><td>${date}</td><td class="text-center">${shipment.total_pipes}</td><td class="text-end">${(shipment.total_weight).toFixed(2)}</td>
+                    <tr data-date="${shipment.created_at}">
+                        <td>#${shipment.id}</td>
+                        <td><a href="/shipment/${shipment.id}" target="_blank"><strong>${shipment.challan_no || 'N/A'}</strong></a></td>
+                        <td>${shipment.vehicle_no || 'N/A'}</td>
+                        <td>${date}</td>
+                        <td class="text-center">${shipment.total_pipes}</td>
+                        <td class="text-end">${(shipment.total_weight).toFixed(2)}</td>
                     </tr>
                 `;
                 tbody.innerHTML += row;
             });
+
+            recalcShipmentTotal();
+
         } catch(e) {
-            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:red;">Failed to load history.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red;">Failed to load history.</td></tr>';
         }
     }
 
-    // Reuse helper functions for reports
-    function downloadCSV() { 
-        // This function is called from the reports tab, so we use the generic CSV download
-        downloadInventoryCSV(); 
-    }
-    function printReportPDF() { 
-         const content = document.getElementById('reportTable').outerHTML;
-         printContent(content, document.getElementById('reportTitle').innerText);
+    function filterShipments() {
+        const input = document.getElementById('shipmentSearch');
+        const filter = input.value.toLowerCase();
+        const table = document.getElementById('shipmentHistoryTable');
+        const tr = table.getElementsByTagName('tr');
+
+        for (let i = 1; i < tr.length; i++) {
+            const rowContent = tr[i].textContent || tr[i].innerText;
+            if (rowContent.toLowerCase().indexOf(filter) > -1) {
+                tr[i].style.display = "";
+            } else {
+                tr[i].style.display = "none";
+            }
+        }
+        recalcShipmentTotal();
     }
 
-    function downloadBackup() { 
-        downloadFileWithAuth('/api/backup', 'pvc_factory.db');
+    function filterHistoryByDate(type) {
+        document.getElementById('shipmentSearch').value = '';
+        const rows = document.querySelectorAll('#shipmentHistoryTable tbody tr');
+        const today = new Date();
+        today.setHours(23, 59, 59, 999);
+
+        let startDate = new Date();
+        let isSpecificDay = false;
+
+        if (type === 'all') {
+            document.getElementById('historyDateFilter').value = ''; 
+            rows.forEach(row => row.style.display = ''); 
+            recalcShipmentTotal();
+            return;
+        } 
+        else if (type === 'date') {
+            const val = document.getElementById('historyDateFilter').value;
+            if (!val) return;
+            startDate = new Date(val);
+            isSpecificDay = true;
+        } 
+        else {
+            const days = parseInt(type);
+            startDate = new Date(); 
+            startDate.setDate(today.getDate() - days);
+            startDate.setHours(0, 0, 0, 0); 
+            document.getElementById('historyDateFilter').value = ''; 
+        }
+
+        rows.forEach(row => {
+            const dateStr = row.getAttribute('data-date');
+            if (!dateStr) return; 
+            
+            const rowDate = new Date(dateStr);
+            let shouldShow = false;
+
+            if (isSpecificDay) {
+                shouldShow = rowDate.toDateString() === startDate.toDateString();
+            } else {
+                shouldShow = rowDate >= startDate;
+            }
+            row.style.display = shouldShow ? '' : 'none';
+        });
+        recalcShipmentTotal();
     }
+
+    function recalcShipmentTotal() {
+        const rows = document.querySelectorAll('#shipmentHistoryTable tbody tr');
+        let total = 0;
+        
+        rows.forEach(row => {
+            if (row.style.display !== 'none') {
+                const cells = row.getElementsByTagName('td');
+                if (cells.length > 4) {
+                    total += parseInt(cells[4].innerText) || 0;
+                }
+            }
+        });
+        document.getElementById('totalVisiblePipes').innerText = total;
+    }
+
+    // --- OTHER HELPERS ---
+    function downloadCSV() { downloadInventoryCSV(); }
+    function printReportPDF() { const content = document.getElementById('reportTable').outerHTML; printContent(content, document.getElementById('reportTitle').innerText); }
+    function downloadBackup() { downloadFileWithAuth('/api/backup', 'pvc_factory.db'); }
     async function cleanData() { if(confirm("⚠️ Delete 30+ day old data?")) await fetch('/api/cleanup', { method: 'POST', headers: AUTH_HEADER }); showToast("Cleanup Done"); }
+
+
+
+    // --- RENDER FUNCTION for stock_table.html ---
+    function renderStockTableTab(dataList) {
+    const container = document.getElementById('stock-table-container');
+    if(!container) return; 
+    
+    if(!dataList || dataList.length === 0) {
+        container.innerHTML = '<div style="padding: 20px; text-align:center; color:#64748b;">No stock data found.</div>';
+        return;
+    }
+
+    let groupedBySize = {};
+    dataList.forEach(item => {
+        let sizeKey = item.size;
+        if(!groupedBySize[sizeKey]) groupedBySize[sizeKey] = [];
+        groupedBySize[sizeKey].push(item);
+    });
+
+    let sortedSizes = Object.keys(groupedBySize).sort((a,b) => parseInt(a) - parseInt(b));
+    
+    let fullHtml = '';
+
+    sortedSizes.forEach(sizeKey => {
+        let items = groupedBySize[sizeKey];
+        items.sort((a,b) => a.pipe_name.localeCompare(b.pipe_name));
+
+        fullHtml += `
+        <div style="margin-bottom: 30px; background: #fff; padding: 20px; border-radius: 12px; box-shadow: var(--shadow-sm);">
+            <h3 style="color: #334155; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 15px; margin-top:0;">
+                📏 Size: ${sizeKey} 
+                <span style="font-size: 0.9rem; color: #64748b; font-weight: normal; margin-left: 10px;">(${items.length} Variants)</span>
+            </h3>
+            <div class="table-responsive">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #f8fafc; color: #64748b; text-align: left;">
+                            <th style="padding: 12px;">Brand</th>
+                            <th style="padding: 12px;">Color</th>
+                            <th style="padding: 12px;">Pressure</th>
+                            <th style="padding: 12px;">Avg Weight</th>
+                            <th style="padding: 12px; text-align: center;">In Stock</th>
+                            <th style="padding: 12px; text-align: center;">IDs</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+        
+        items.forEach(row => {
+            let pressure = row.pressure_class ? row.pressure_class : ''; 
+            let pressureDisplay = pressure ? `<span style="color:#ef4444; font-weight:600;">${pressure}</span>` : '<span style="color:#cbd5e1;">-</span>';
+            let avgWt = row.avg_weight ? parseFloat(row.avg_weight).toFixed(3) + ' Kg' : '<span style="color:#cbd5e1;">-</span>';
+            let stockStyle = row.stock < 50 ? 'color: #ef4444;' : 'color: #10b981;';
+
+            fullHtml += `
+                        <tr style="border-bottom: 1px solid #f1f5f9;">
+                            <td style="padding: 12px; font-weight: 700; color: #334155;">${row.pipe_name}</td>
+                            <td style="padding: 12px;">${row.color}</td>
+                            <td style="padding: 12px;">${pressureDisplay}</td>
+                            <td style="padding: 12px; color:#64748b;">${avgWt}</td>
+                            <td style="padding: 12px; text-align: center; font-size: 1.1rem; font-weight: 800; ${stockStyle}">${row.stock}</td>
+                            
+                            <td style="padding: 12px; text-align: center;">
+                                <a href="javascript:void(0)" 
+                                onclick="viewIds('${row.pipe_name}', '${row.size}', '${row.color}', '${row.pressure_class}')"
+                                   style="color: #2563eb; text-decoration: underline; font-weight: 600; font-size: 0.9rem;">
+                                   View List ↗
+                                </a>
+                            </td>
+                        </tr>`;
+        });
+
+        fullHtml += `</tbody></table></div></div>`;
+    });
+
+    container.innerHTML = fullHtml;
+}
+// --- NEW HELPER: Jump to Master Inventory filters ---
+function viewIds(brand, size, color, pressure) {
+    console.log("🚨 viewIds CLICKED! Data received:", { brand, size, color, pressure });
+    // 1. Switch to the Inventory Tab
+    if (typeof showTab === 'function') showTab('inventory');
+
+    // 2. Set the Filter Dropdowns automatically
+    document.getElementById('f_name').value = brand || '';
+    document.getElementById('f_size').value = size || '';
+    document.getElementById('f_color').value = color || '';
+    
+    // Safely handle the pressure formatting
+    const pressureDropdown = document.getElementById('f_pressure');
+    if (!pressure || pressure === '-' || pressure === 'null' || pressure === 'undefined') {
+        pressureDropdown.value = ''; // Default to All
+    } else {
+        // Force it to match the exact value in your HTML dropdown (e.g., "10kgf")
+        let cleanPressure = String(pressure).toLowerCase().replace(/\s/g, '');
+        
+        // Check if the option actually exists in the dropdown before setting it
+        let optionExists = Array.from(pressureDropdown.options).some(opt => opt.value === cleanPressure);
+        pressureDropdown.value = optionExists ? cleanPressure : '';
+    }
+
+    document.getElementById('f_status').value = 'stock'; // Force "In Stock" view
+
+    // 3. Run the search
+    fetchInventory();
+}
+// --- NEW: DEAD STOCK DRILL DOWN ---
+// --- POPUP WINDOW: Fetch and display Dead Stock IDs ---
+async function openDeadStockWindow(brand, size, color, pressure) {
+        // 1. THE FIX: Switch the screen to the Inventory Tab first!
+        if (typeof showTab === 'function') {
+            showTab('inventory');
+        }
+
+        isDetailMode = true;
+        
+        // 2. Set up the UI
+        document.getElementById('inv-summary-view').style.display = 'none';
+        document.getElementById('inv-detail-view').style.display = 'block';
+        document.getElementById('masterTable').style.display = 'table'; 
+        document.getElementById('detail-nav-header').style.display = 'flex';
+        
+        // Make the title clear that this is Dead Stock
+        let title = ` Old Stock: ${brand} ${size} ${color}`;
+        if (pressure && pressure !== '-' && pressure !== 'null') title += ` (${pressure})`;
+        document.getElementById('detail-view-title').innerText = title;
+        
+        document.getElementById('masterBody').innerHTML = '<tr><td colspan="10" style="text-align:center;">Fetching Old Stock IDs...</td></tr>';
+
+        // 3. Ask the backend for the Old Stock
+        const params = new URLSearchParams({
+            name: brand,
+            size: size,
+            color: color,
+            pressure: pressure || '', 
+            status: 'stock',
+            dead_stock: 'true', 
+            grouped: 'false',
+            page: 1,           
+            per_page: 1000     
+        });
+
+        try {
+            const res = await fetch(`/api/inventory?${params}`, { headers: AUTH_HEADER });
+            if (!res.ok) throw new Error("Server error");
+            
+            const freshData = await res.json();
+            
+            // 4. Render the fetched items 
+            renderDetailTable(freshData.items, false);
+            
+            // Hide pagination for drill-downs
+            const paginationEl = document.getElementById('pagination-controls');
+            if (paginationEl) paginationEl.style.display = 'none';
+
+        } catch(e) {
+            console.error(e);
+            document.getElementById('masterBody').innerHTML = '<tr><td colspan="10" style="text-align:center; color:red;">Failed to fetch IDs from server.</td></tr>';
+        }
+    }
+// --- RESET FILTERS FUNCTION ---
+function resetFilters() {
+        // 1. Clear all the dropdowns and date inputs
+        document.getElementById('f_name').value = '';
+        document.getElementById('f_size').value = '';
+        document.getElementById('f_color').value = '';
+        document.getElementById('f_pressure').value = '';
+        document.getElementById('f_status').value = 'stock'; 
+        document.getElementById('f_start').value = '';
+
+        // 2. THE FIX: Forcefully shut down Reject Mode and hide the buttons
+        if (typeof isDeleteMode !== 'undefined') {
+            isDeleteMode = false; // Reset the internal memory
+        }
+        
+        // Hide checkboxes
+        const table = document.getElementById('masterTable');
+        if (table) table.classList.remove('delete-mode-active');
+        
+        // Reset the 3 buttons explicitly
+        const enterBtn = document.getElementById('enter-delete-mode-btn');
+        if (enterBtn) enterBtn.style.display = 'inline-block';
+        
+        const cancelBtn = document.getElementById('cancel-delete-mode-btn');
+        if (cancelBtn) cancelBtn.style.display = 'none';
+        
+        const executeBtn = document.getElementById('bulk-delete-btn');
+        if (executeBtn) executeBtn.style.display = 'none';
+
+        // 3. Fetch the fresh, unfiltered inventory
+        fetchInventory(1);
+    }
+    // ==========================================
+    // 🗑️ BULK DELETE LOGIC (COMPLETE)
+    // ==========================================
+    let isDeleteMode = false;
+
+    function toggleDeleteMode() {
+        isDeleteMode = !isDeleteMode;
+        const table = document.getElementById('masterTable');
+        const enterBtn = document.getElementById('enter-delete-mode-btn');
+        const cancelBtn = document.getElementById('cancel-delete-mode-btn');
+        const executeBtn = document.getElementById('bulk-delete-btn');
+
+        if (isDeleteMode) {
+            table.classList.add('delete-mode-active');
+            if(enterBtn) enterBtn.style.display = 'none';
+            if(cancelBtn) cancelBtn.style.display = 'block';
+            if(executeBtn) executeBtn.style.display = 'block';
+            updateDeleteButtonState(); 
+        } else {
+            table.classList.remove('delete-mode-active');
+            if(enterBtn) enterBtn.style.display = 'block';
+            if(cancelBtn) cancelBtn.style.display = 'none';
+            if(executeBtn) executeBtn.style.display = 'none';
+            
+            const selectAll = document.getElementById('selectAllCheckbox');
+            if(selectAll) selectAll.checked = false;
+            document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = false);
+        }
+    }
+
+    function toggleAllCheckboxes(source) {
+        document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = source.checked);
+        updateDeleteButtonState();
+    }
+
+    function updateDeleteButtonState() {
+        const checkedCount = document.querySelectorAll('.row-checkbox:checked').length;
+        const btn = document.getElementById('bulk-delete-btn');
+        
+        if (btn && isDeleteMode) {
+            btn.innerText = `🗑️ Delete Selected (${checkedCount})`;
+            if (checkedCount > 0) {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                btn.style.cursor = 'pointer';
+            } else {
+                btn.disabled = true;
+                btn.style.opacity = '0.5';
+                btn.style.cursor = 'not-allowed';
+                const selectAll = document.getElementById('selectAllCheckbox');
+                if(selectAll) selectAll.checked = false;
+            }
+        }
+    }
+
+    function openDeleteModal() {
+        console.log("Opening modal...");
+        const checkedCount = document.querySelectorAll('.row-checkbox:checked').length;
+        if (checkedCount === 0) {
+            alert("⚠️ Please check at least one box first.");
+            return;
+        }
+
+        const modal = document.getElementById('deleteModal');
+        if (!modal) {
+            alert("❌ ERROR: The <div id='deleteModal'> HTML is missing from inventory.html!");
+            return;
+        }
+        
+        document.getElementById('delete-count-text').innerText = checkedCount;
+        const inputEl = document.getElementById('deleteConfirmInput');
+        if (inputEl) inputEl.value = ''; 
+        
+        checkDeleteInput(); 
+        modal.style.display = 'flex';
+        if (inputEl) inputEl.focus();
+    }
+
+    function closeDeleteModal() {
+        const modal = document.getElementById('deleteModal');
+        if(modal) modal.style.display = 'none';
+    }
+
+    function checkDeleteInput() {
+        const inputEl = document.getElementById('deleteConfirmInput');
+        const btn = document.getElementById('confirmDeleteBtn');
+        if (!inputEl || !btn) return; 
+
+        if (inputEl.value.trim().toUpperCase() === 'REJECT') {
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+        } else {
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'not-allowed';
+        }
+    }
+
+    async function executeBulkDelete() {
+        const ids = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => parseInt(cb.value));
+        if (ids.length === 0) return;
+
+        const btn = document.getElementById('confirmDeleteBtn');
+        btn.innerText = "Deleting...";
+        btn.disabled = true;
+
+        try {
+            let requestHeaders = { 'Content-Type': 'application/json' };
+            if (typeof AUTH_HEADER !== 'undefined') requestHeaders = { ...requestHeaders, ...AUTH_HEADER };
+
+            const res = await fetch('/api/inventory/reject', {
+                method: 'POST',
+                headers: requestHeaders,
+                body: JSON.stringify({ ids: ids })
+            });
+            
+            const data = await res.json();
+            
+            if (data.success) {
+                closeDeleteModal();
+                toggleDeleteMode(); 
+                fetchInventory(typeof currentPage !== 'undefined' ? currentPage : 1); 
+            } else {
+                alert("❌ Server Error: " + data.message);
+                btn.innerText = "Delete Forever";
+                checkDeleteInput();
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Failed to connect to server.");
+            btn.innerText = "Delete Forever";
+            checkDeleteInput();
+        }
+    }
 </script>
 {% endblock %}

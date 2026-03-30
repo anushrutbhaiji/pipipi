@@ -1,114 +1,360 @@
 {% extends "layout.html" %}
 {% block content %}
 <style>
-    body { background-color: #f4f7f9; }
-    .container { max-width: 900px; margin: 2rem auto; }
-    .header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.5rem;
-        padding-bottom: 1rem;
-        border-bottom: 1px solid #e2e8f0;
-    }
-    .header h1 { font-size: 1.5rem; font-weight: 700; margin: 0; }
-    .card {
-        background: #ffffff;
-        border: 1px solid #e2e8f0;
-        border-radius: 0.75rem;
-        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
-    }
-    .card-body { padding: 2rem; }
-    .shipment-info {
-        background: #f8fafc;
-        padding: 1.5rem;
-        border-radius: 0.5rem;
-        margin-bottom: 2rem;
-        border: 2px dashed #d1d5db;
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 1rem;
-    }
-    .shipment-info strong { color: #64748b; display: block; font-size: 0.8rem; margin-bottom: 2px; }
-    .shipment-info span { font-weight: 500; }
+    body { background-color: #f8fafc; color: #334155; }
+    .container { max-width: 950px; margin: 2rem auto; }
+    
+    /* --- HEADER --- */
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+    .header h1 { font-size: 1.8rem; font-weight: 800; margin: 0; color: #1e293b; }
+    .header-actions { display: flex; gap: 12px; }
+
+    /* --- INFO CARDS --- */
+    .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+    .info-card { background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; }
+    .info-card label { display: block; font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 5px; }
+    .info-card .value { font-size: 1.1rem; font-weight: 600; color: #0f172a; }
+    .info-card.highlight { border-left: 5px solid #2563eb; }
+
+    /* --- TABLE STYLES --- */
+    .table-card { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; overflow: hidden; }
+    .table-header { padding: 1.5rem; border-bottom: 1px solid #e2e8f0; background: #f8fafc; display: flex; justify-content: space-between; align-items: center; }
     table { width: 100%; border-collapse: collapse; }
-    th { background: #f8fafc; text-align: left; padding: 12px; font-size: 0.85rem; color: #64748b; border-bottom: 2px solid #e2e8f0; }
-    td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }
-    tr:last-child td { border-bottom: none; }
+    th { text-align: left; padding: 15px; font-size: 0.85rem; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0; }
+    td { padding: 12px 15px; border-bottom: 1px solid #f1f5f9; font-size: 0.95rem; }
+    tr:hover { background: #f8fafc; }
+
+    /* --- MODAL STYLES (For Add Pipes) --- */
+    .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 1000; }
+    .modal-window { background: white; width: 100%; max-width: 500px; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); overflow: hidden; }
+    .modal-header { padding: 1.5rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; }
+    .modal-body { padding: 1.5rem; }
+    .modal-footer { padding: 1.5rem; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 10px; }
+    .scan-input-group { position: relative; margin-bottom: 1rem; }
+    .scan-input { width: 100%; padding: 12px 15px 12px 45px; border: 2px solid #cbd5e1; border-radius: 8px; font-size: 1.1rem; outline: none; }
+    .scan-input:focus { border-color: #2563eb; }
+    .scan-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); font-size: 1.2rem; }
+    .pending-list { list-style: none; padding: 0; margin: 0; max-height: 200px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; }
+    .pending-item { padding: 10px 15px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
+    .del-btn { color: #ef4444; background: none; border: none; cursor: pointer; font-weight: bold; }
 
     @media print {
-        body { background-color: #fff; }
-        .no-print { display: none !important; }
-        .container { max-width: 100%; margin: 0; }
-        .card { box-shadow: none; border: none; }
-        body * { visibility: hidden; }
-        #print-area, #print-area * { visibility: visible; }
-        #print-area { position: absolute; left: 0; top: 0; width: 100%; }
+        .no-print, .modal-backdrop { display: none !important; }
+        .container { margin: 0; max-width: 100%; }
+        .table-card { box-shadow: none; border: none; }
+        th { background: white !important; color: black !important; }
     }
 </style>
 
 <div class="container">
     <div class="header no-print">
-        <h1>Shipment Detail</h1>
         <div>
-            <a href="/admin" class="btn btn-outline-secondary" id="back-to-history">← Back to History</a>
-            <button onclick="window.print()" class="btn btn-primary">🖨️ Print</button>
+            <a href="/admin" style="text-decoration: none; color: #64748b; font-size: 0.9rem; font-weight: 600;">← Back to Dashboard</a>
+            <h1>Shipment #{{ shipment.id }}</h1>
+        </div>
+        <div class="header-actions">
+            <button onclick="openModal()" class="btn" style="background: #2563eb; color: white; padding: 10px 20px; border-radius: 8px;">➕ Add Pipes</button>
+            <button onclick="window.print()" class="btn" style="background: white; border: 1px solid #cbd5e1; color: #334155; padding: 10px 20px; border-radius: 8px;">🖨️ Print Challan</button>
         </div>
     </div>
 
-    <div class="card" id="print-area">
-        <div class="card-body">
-            <h2 style="text-align: center; margin-bottom: 2rem;">Dispatch Challan</h2>
-            <div class="shipment-info">
-                <div style="grid-column: 1 / -1;"><strong>Customer</strong> <span>{{ shipment.customer_name or 'N/A' }}</span></div>
-                <div style="grid-column: 1 / -1;"><strong>Address</strong> <span>{{ shipment.customer_address or 'N/A' }}</span></div>
-                <div><strong>Challan No.</strong> <span>{{ shipment.challan_no or 'N/A' }}</span></div>
-                <div><strong>Vehicle No.</strong> <span>{{ shipment.vehicle_no or 'N/A' }}</span></div>
-                <div><strong>Date</strong> <span>{{ shipment.created_at | format_datetime }}</span></div>
-                <div><strong>Customer Mobile</strong> <span>{{ shipment.customer_mobile or 'N/A' }}</span></div>
-                <div><strong>Driver Mobile</strong> <span>{{ shipment.driver_mobile or 'N/A' }}</span></div>
+    <div id="print-area">
+        <div class="info-grid">
+            <div class="info-card highlight">
+                <label>Challan No.</label>
+                <div class="value">{{ shipment.challan_no or 'N/A' }}</div>
+            </div>
+            <div class="info-card">
+                <label>Vehicle No.</label>
+                <div class="value">{{ shipment.vehicle_no or 'N/A' }}</div>
+            </div>
+            <div class="info-card">
+                <label>Customer</label>
+                <div class="value">{{ shipment.customer_name or 'N/A' }}</div>
+            </div>
+            <div class="info-card">
+                <label>Total Weight</label>
+                <div class="value">{{ (shipment.total_weight) | round(2) }} kg</div>
+            </div>
+        </div>
+
+        <div class="table-card">
+            
+            <div id="summary-view">
+                <div class="table-header">
+                    <h3 style="margin: 0; font-size: 1.1rem; color: #334155;">Included Items (Summary)</h3>
+                    <span style="background: #e2e8f0; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 700;">{{ shipment.total_pipes }} Total Pipes</span>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Brand</th>
+                            <th>Size</th>
+                            <th>Color</th>
+                            <th>Pressure</th>
+                            <th style="text-align: center;">Qty</th>
+                            <th style="text-align: right;">Avg Wt (kg)</th>
+                            <th style="text-align: center;" class="no-print">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="summaryBody">
+                        </tbody>
+                </table>
             </div>
 
-            <h4 style="margin-top: 2rem; margin-bottom: 1rem;">Items in Shipment ({{ shipment.total_pipes }} total)</h4>
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Pipe ID</th>
-                        <th>Brand / Name</th>
-                        <th>Size</th>
-                        <th>Color</th>
-                        <th style="text-align: right;">Weight (kg)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in items %}
-                    <tr>
-                        <td>{{ loop.index }}</td>
-                        <td>#{{ item.id }}</td>
-                        <td>{{ item.pipe_name }}</td>
-                        <td>{{ item.size }}</td>
-                        <td>{{ item.color }}</td>
-                        <td style="text-align: right;">{{ (item.weight_g) | round(3) }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-                <tfoot>
-                    <tr style="font-weight: bold; background: #f8fafc; border-top: 2px solid #e2e8f0;">
-                        <td colspan="5" style="text-align: right;">Total Weight:</td>
-                        <td style="text-align: right;">{{ (shipment.total_weight) | round(2) }} kg</td>
-                    </tr>
-                </tfoot>
-            </table>
+            <div id="detail-view" style="display: none;">
+                <div class="table-header" style="background: #eff6ff;">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <button class="btn no-print" onclick="backToSummary()" style="background: #cbd5e1; color: #334155; padding: 5px 15px; border-radius: 6px; font-size: 0.85rem; font-weight:bold;">⬅️ Back to Summary</button>
+                        <h3 id="detailTitle" style="margin: 0; font-size: 1.1rem; color: #1e40af;"></h3>
+                    </div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">#</th>
+                            <th>Pipe ID (Barcode)</th>
+                            <th style="text-align: right;">Weight (kg)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detailBody">
+                        </tbody>
+                </table>
+            </div>
+
         </div>
     </div>
 </div>
 
+<div id="addModal" class="modal-backdrop">
+    <div class="modal-window">
+        <div class="modal-header">
+            <h3 style="margin: 0; font-size: 1.2rem;">Add Pipes to Shipment</h3>
+            <button onclick="closeModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="scan-input-group">
+                <span class="scan-icon">🔍</span>
+                <input type="text" id="scanInput" class="scan-input" placeholder="Scan barcode here..." onkeydown="handleScan(event)">
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                <label style="font-weight: 600; font-size: 0.9rem; color: #64748b;">Pending Items</label>
+                <span id="pendingCount" style="font-size: 0.8rem; background: #bfdbfe; color: #1e40af; padding: 2px 8px; border-radius: 10px;">0</span>
+            </div>
+            <ul id="scannedList" class="pending-list">
+                <li style="padding: 20px; text-align: center; color: #94a3b8; font-style: italic;" id="emptyMsg">No items scanned yet.</li>
+            </ul>
+        </div>
+        <div class="modal-footer">
+            <button onclick="closeModal()" class="btn" style="background: white; border: 1px solid #cbd5e1; color: #475569; border-radius: 8px;">Cancel</button>
+            <button onclick="commitItems()" class="btn" style="background: #166534; color: white; border-radius: 8px;">✅ Save Changes</button>
+        </div>
+    </div>
+</div>
+<script type="application/json" id="rawItemsData">
+    {{ items | tojson | safe }}
+</script>
 <script>
-    document.getElementById('back-to-history').addEventListener('click', function(e) {
-        e.preventDefault();
-        sessionStorage.setItem('admin_active_tab', 'shipments');
-        window.location.href = '/admin';
+    // --- 1. TABLE GROUPING LOGIC ---
+    
+    // Inject the raw Python data safely into JavaScript
+    const rawItems = JSON.parse(document.getElementById('rawItemsData').textContent);
+    let groupedData = {};
+
+    function initTable() {
+        // Group the data
+        rawItems.forEach(item => {
+            let pressure = item.pressure_class || '-';
+            let key = `${item.pipe_name}|${item.size}|${item.color}|${pressure}`;
+            
+            if(!groupedData[key]) {
+                groupedData[key] = {
+                    brand: item.pipe_name, 
+                    size: item.size, 
+                    color: item.color, 
+                    pressure: pressure,
+                    count: 0, 
+                    weight: 0, 
+                    items: [] // Store individual pipes here for the drill-down
+                };
+            }
+            groupedData[key].count++;
+            groupedData[key].weight += item.weight_g;
+            groupedData[key].items.push(item);
+        });
+
+        renderSummary();
+    }
+
+    function renderSummary() {
+        document.getElementById('summary-view').style.display = 'block';
+        document.getElementById('detail-view').style.display = 'none';
+
+        const tbody = document.getElementById('summaryBody');
+        tbody.innerHTML = '';
+        let grandTotalWt = 0;
+
+        Object.keys(groupedData).forEach(key => {
+            let g = groupedData[key];
+            grandTotalWt += g.weight;
+            
+            tbody.innerHTML += `
+                <tr>
+                    <td style="font-weight: 700; color: #334155;">${g.brand}</td>
+                    <td>${g.size}</td>
+                    <td>${g.color}</td>
+                    <td style="color: #ef4444; font-weight: 600;">${g.pressure !== '-' ? g.pressure : ''}</td>
+                    <td style="text-align: center; font-weight: bold; font-size: 1.1rem; color: #2563eb;">${g.count}</td>
+                    <td style="text-align: right;">${(g.weight / g.count).toFixed(3)}</td>
+                    <td style="text-align: center;" class="no-print">
+                        <button class="btn" style="padding: 4px 10px; width: auto; font-size: 0.8rem; background: #e2e8f0; color: #475569;" onclick="viewIds('${key}')">Ids ↗</button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        // Add Grand Total Row
+        tbody.innerHTML += `
+            <tr style="background: #f1f5f9; font-weight: bold; border-top: 2px solid #cbd5e1;">
+                <td colspan="5" style="text-align: right; padding-right: 15px;">GRAND TOTAL WEIGHT:</td>
+                <td style="text-align: right; font-size: 1.1rem; color: #2563eb;">${grandTotalWt.toFixed(3)} kg</td>
+                <td class="no-print"></td>
+            </tr>
+        `;
+    }
+
+    function viewIds(key) {
+        // Toggle Views
+        document.getElementById('summary-view').style.display = 'none';
+        document.getElementById('detail-view').style.display = 'block';
+        
+        let g = groupedData[key];
+        let pText = g.pressure !== '-' ? ` | ${g.pressure}` : '';
+        document.getElementById('detailTitle').innerText = `📄 ${g.brand} • ${g.size} • ${g.color} ${pText}`;
+
+        const tbody = document.getElementById('detailBody');
+        tbody.innerHTML = '';
+
+        // Render the raw IDs
+        g.items.forEach((item, index) => {
+            tbody.innerHTML += `
+                <tr>
+                    <td style="color: #94a3b8;">${index + 1}</td>
+                    <td style="font-family: monospace; font-size: 1.1rem; font-weight: 700; color: #475569;">#${item.id}</td>
+                    <td style="text-align: right;">${item.weight_g.toFixed(3)}</td>
+                </tr>
+            `;
+        });
+    }
+
+    function backToSummary() {
+        document.getElementById('summary-view').style.display = 'block';
+        document.getElementById('detail-view').style.display = 'none';
+    }
+
+    // Run when page loads
+    document.addEventListener("DOMContentLoaded", initTable);
+
+
+    // --- 2. ADD PIPES MODAL LOGIC ---
+    let scannedIds = [];
+
+    function openModal() {
+        document.getElementById('addModal').style.display = 'flex';
+        document.getElementById('scanInput').focus();
+    }
+
+    function closeModal() {
+        document.getElementById('addModal').style.display = 'none';
+        scannedIds = []; 
+        renderList();
+    }
+
+    document.addEventListener('keydown', function(event) {
+        if (event.key === "Escape") closeModal();
     });
+
+    function handleScan(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const val = e.target.value.trim();
+            if (!val) return;
+
+            const idMatch = val.match(/\d+/);
+            if(idMatch) {
+                const id = parseInt(idMatch[0]);
+                if(scannedIds.includes(id)) {
+                    alert("⚠️ Pipe #" + id + " is already in the list!");
+                } else {
+                    scannedIds.unshift(id); 
+                    renderList();
+                }
+                e.target.value = ''; 
+            } else {
+                alert("❌ Invalid Barcode Format");
+            }
+        }
+    }
+
+    function renderList() {
+        const ul = document.getElementById('scannedList');
+        const countSpan = document.getElementById('pendingCount');
+        countSpan.innerText = scannedIds.length;
+
+        if (scannedIds.length === 0) {
+            ul.innerHTML = '<li style="padding: 20px; text-align: center; color: #94a3b8; font-style: italic;">No items scanned yet.</li>';
+            return;
+        }
+
+        ul.innerHTML = scannedIds.map(id => `
+            <li class="pending-item">
+                <span style="font-weight: 600; color: #334155;">📦 Pipe #${id}</span>
+                <button class="del-btn" onclick="removeScan(${id})">Remove</button>
+            </li>
+        `).join('');
+    }
+
+    function removeScan(id) {
+        scannedIds = scannedIds.filter(x => x !== id);
+        renderList();
+    }
+
+    async function commitItems() {
+        if (scannedIds.length === 0) return alert("Scan some pipes first!");
+
+        const shipmentId = parseInt("{{ shipment.id }}", 10);
+        const btn = document.querySelector('.modal-footer .btn:last-child');
+        const originalText = btn.innerText;
+        
+        btn.innerText = "Saving...";
+        btn.disabled = true;
+
+        const payload = {
+            shipment_id: shipmentId,
+            items: scannedIds.map(id => ({ id: id })) 
+        };
+
+        try {
+            const res = await fetch('/api/dispatch/edit_add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                location.reload(); 
+            } else {
+                alert("❌ Error: " + data.message);
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        } catch (e) {
+            alert("Connection Error");
+            console.error(e);
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
+    }
 </script>
 {% endblock %}

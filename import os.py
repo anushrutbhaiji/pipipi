@@ -143,7 +143,7 @@ def import_base64(data):
 def create_label_in_db(data):
     created_at = datetime.datetime.now().isoformat()
     length_m = data.get('length_m', '6m')
-    batch = data.get('batch', 'BATCH-001')
+    batch = data.get('batch', '#1')
     
     with get_db_connection() as conn:
         cur = conn.cursor()
@@ -266,7 +266,7 @@ def silent_print_label(label_data, printer_name=None):
         draw.text((20, 10), str(label_data['pipe_name']), font=font_lg, fill="black")
         draw.text((20, 65), f"{label_data['size']} | {label_data['color']}", font=font_md, fill="black")
         draw.text((20, 110), f"Wt: {label_data['weight_g']} Kg", font=font_lg, fill="black")
-        draw.text((20, 180), f"Batch: {label_data['batch']}", font=font_sm, fill="black") 
+        draw.text((20, 180), f"{label_data.get('batch','')}", font=font_sm, fill="black") 
         draw.text((20, 210), f"Op: {label_data['operator']}", font=font_sm, fill="black")
         draw.text((220, 210), f"Time: {label_data['created_at'][11:16]}", font=font_sm, fill="black")
 

@@ -1,19 +1,141 @@
 <div class="filter-bar">
-    <div class="filter-group"><label>Brand</label><select id="f_name"><option value="">All</option><option value="Gangotry">Gangotry</option><option value="UltraPlast">UltraPlast</option><option value="KissanGreen">KissanGreen</option><option value="Casing">Casing</option></select></div>
-    <div class="filter-group"><label>Size</label><select id="f_size"><option value="">All</option><option value="63mm">63mm</option><option value="75mm">75mm</option><option value="90mm">90mm</option><option value="110mm">110mm</option><option value="140mm">140mm</option><option value="160mm">160mm</option><option value="180mm">180mm</option><option value="200mm">200mm</option></select></div>
-    <div class="filter-group"><label>Color</label><select id="f_color"><option value="">All</option><option value="Blue">Blue</option><option value="Grey">Grey</option></select></div>
-    <div class="filter-group"><label>Status</label><select id="f_status"><option value="">All</option><option value="stock">In Stock</option><option value="dispatched">Dispatched</option></select></div>
-    <div class="filter-group"><label>Date</label><input type="date" id="f_start"></div>
-    <div class="filter-group"><button class="btn" style="margin-bottom: 0;" onclick="fetchInventory()">🔍 Apply</button></div>
-    
-    <div class="filter-group" style="border-left: 2px solid #e2e8f0; padding-left: 15px; margin-left: 15px;">
-        <label>Actions</label>
+    <div class="filter-group">
+        <label>Brand</label>
+        <select id="f_name" onchange="fetchInventory()">
+            <option value="">All</option>
+            <option value="Gangotry">Gangotry</option>
+            <option value="UltraPlast">UltraPlast</option>
+            <option value="KissanGreen">KissanGreen</option>
+            <option value="Casing">Casing</option>
+            <option value="JunTech">JunTech</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label>Size</label>
+        <select id="f_size" onchange="fetchInventory()">
+            <option value="">All</option>
+            <option value="63mm">63mm</option>
+            <option value="75mm">75mm</option>
+            <option value="90mm">90mm</option>
+            <option value="110mm">110mm</option>
+            <option value="140mm">140mm</option>
+            <option value="160mm">160mm</option>
+            <option value="180mm">180mm</option>
+            <option value="200mm">200mm</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label>Color</label>
+        <select id="f_color" onchange="fetchInventory()">
+            <option value="">All</option>
+            <option value="Blue">Blue</option>
+            <option value="Grey">Grey</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label>Pressure</label>
+        <select id="f_pressure" onchange="fetchInventory()">
+            <option value="">All</option>
+            <option value="4kgf">4 Kgf</option>
+            <option value="6kgf">6 Kgf</option>
+            <option value="10kgf">10 Kgf</option>
+            </select>
+    </div>
+    <div class="filter-group">
+        <label>Status</label>
+        <select id="f_status" onchange="fetchInventory()">
+            <option value="stock">In Stock</option>
+            <option value="dispatched">Dispatched</option>
+            <option value="rejected">Rejected Pipes</option>
+            <option value="">All</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label>Date</label>
+        <input type="date" id="f_start" onchange="fetchInventory()">
+    </div>
+    <div class="filter-group" style="align-self: flex-end;">
+        <button class="btn" style="margin-bottom: 0;" onclick="fetchInventory()">🔍 Apply</button>
+    </div>
+    <div class="filter-group" style="border-left: 2px solid #e2e8f0; padding-left: 15px; margin-left: 15px; align-self: flex-end;">
         <div style="display: flex; gap: 5px;">
             <button class="btn" style="background: #334155; margin:0; padding: 10px;" onclick="printInventory()" title="Print List">🖨️</button>
             <button class="btn" style="background: #166534; margin:0; padding: 10px;" onclick="downloadInventoryCSV()" title="Download CSV">📥</button>
+            <button class="btn" style="background: #13285b; margin:0; padding: 10px 15px; color: white;" onclick="resetFilters()" title="Reset Filters">🔄 Reset</button>
         </div>
     </div>
 </div>
-<div class="data-table-container">
-    <div class="table-responsive"><table id="masterTable"><thead><tr><th>ID</th><th>Pipe Name</th><th>Size</th><th>Color</th><th>Weight (kg)</th><th>Op</th><th>Created</th><th>Status</th></tr></thead><tbody id="masterBody"></tbody></table></div>
+
+<div id="inv-summary-view" style="display: none;">
+    <div class="data-table-container">
+        <h4 style="padding: 10px 15px; margin:0; border-bottom:1px solid #e2e8f0; color:#334155; background: #f8fafc; display:flex; align-items:center;">
+            📦 Inventory Summary 
+            <span id="summary-active-filters" style="color: #2563eb; font-size: 1.4rem; font-weight: 800; margin-left: 15px; text-transform: uppercase;"></span>
+        </h4>
+        <div class="table-responsive">
+            <table id="invSummaryTable">
+                <thead id="invSummaryHead"></thead>
+                <tbody id="invSummaryBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="inv-detail-view" style="display: none;">
+    
+    <div id="detail-nav-header" style="display: none; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+        
+        <div id="drill-down-info" style="display: flex; align-items: center; gap: 15px; flex-wrap: nowrap;">
+            <button type="button" class="btn" onclick="backToSummary()" style="background: #64748b; color: white; margin: 0;">⬅️ Back to Summary</button>
+            <h3 id="detail-view-title" style="margin: 0; color: #1e293b; font-size: 1.2rem; white-space: nowrap;">📄 Details</h3>
+        </div>
+        
+        <div style="display: flex; gap: 10px; flex-wrap: nowrap; margin-left: auto;">
+            <button type="button" class="btn" id="enter-delete-mode-btn" onclick="toggleDeleteMode()" style="background: #13285b; color: white; margin: 0;">🗑️ Select Pipes to Reject</button>
+            <button type="button" class="btn" id="cancel-delete-mode-btn" onclick="toggleDeleteMode()" style="background: #94a3b8; color: white; margin: 0; display: none;">Cancel</button>
+            <button type="button" class="btn" id="bulk-delete-btn" onclick="openDeleteModal()" style="background: #ef4444; color: white; margin: 0; display: none; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);" disabled>
+                Reject Selected (0)
+            </button>
+        </div>
+    </div>
+    <div id="deleteModal" class="modal-backdrop" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.7); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(3px);">
+        <div style="background: white; padding: 30px; border-radius: 12px; max-width: 400px; width: 90%; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);">
+            <div style="font-size: 3rem; margin-bottom: 10px;">⚠️</div>
+            <h3 style="color: #ef4444; margin-top: 0; font-size: 1.5rem;">Confirm Rejection</h3>
+            <p style="color: #334155; font-size: 1.1rem;">You are about to reject <b id="delete-count-text" style="color: #ef4444; font-size: 1.3rem;">0</b> pipes.</p>
+            <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 15px;">This action cannot be undone. To confirm, type <strong>REJECT</strong> below:</p>
+            
+            <input type="text" id="deleteConfirmInput" placeholder="Type REJECT here..." onkeyup="checkDeleteInput()" style="width: 100%; padding: 12px; font-size: 1.2rem; text-align: center; border: 2px solid #cbd5e1; border-radius: 8px; margin-bottom: 20px; text-transform: uppercase; outline: none;">
+            
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button type="button" class="btn" onclick="closeDeleteModal()" style="background: white; border: 1px solid #cbd5e1; color: #475569; flex: 1; margin: 0;">Cancel</button>
+                <button type="button" class="btn" id="confirmDeleteBtn" onclick="executeBulkDelete()" style="background: #ef4444; color: white; flex: 1; margin: 0; opacity: 0.5; cursor: not-allowed;" disabled>Reject Forever</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table id="masterTable">
+            <thead>
+                <tr>
+                    <th class="delete-col" style="width: 40px; text-align: center;">
+                        <input type="checkbox" id="selectAllCheckbox" onclick="toggleAllCheckboxes(this)" style="transform: scale(1.2); cursor: pointer;">
+                    </th>
+                    <th>ID</th>
+                    <th>Pipe Name</th>
+                    <th>Size</th>
+                    <th>Color</th>
+                    <th>Pressure</th>
+                    <th>Weight (kg)</th>
+                    <th>Op</th>
+                    <th>Created</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="masterBody">
+            </tbody>
+        </table>
+    </div>
+    <div id="pagination-controls" style="display: none; justify-content: center; align-items: center; padding: 15px; background: #f8fafc; border-top: 2px solid #e2e8f0; border-radius: 0 0 12px 12px; gap: 5px; flex-wrap: wrap;">
+    </div>
 </div>

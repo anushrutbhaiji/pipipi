@@ -9,7 +9,7 @@ import urllib.error
 
 # --- CONFIGURATION ---
 APP_SCRIPT = "app.py"
-GENERATE_PAGE_URL = "http://localhost:5000/" 
+GENERATE_PAGE_URL = "http://localhost:5000/generate" 
 
 # Cloudflare command (Agar use kar rahe ho to)
 CLOUDFLARE_CMD = ["cloudflared", "tunnel", "run", "gen-tunnel"] 

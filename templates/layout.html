@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=1100">
     <title>PVC Factory Pro</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -158,12 +158,12 @@
     <nav class="navbar">
         <div class="brand">🏭 PVC PRO</div>
         <div class="nav-links">
-            <a href="/" class="nav-item {% if request.path == '/' %}active{% endif %}">Generate</a>
+            <a href="/generate" class="nav-item {% if request.path == '/generate' %}active{% endif %}">Generate</a>
             <a href="/scan" class="nav-item {% if request.path == '/scan' %}active{% endif %}">Scan</a>
             <a href="/dispatch" class="nav-item {% if request.path == '/dispatch' %}active{% endif %}">Dispatch Hub</a>
-            <a href="/admin" class="nav-item {% if request.path == '/admin' %}active{% endif %}">Admin</a>
+            <a href="/admin" class="nav-item {% if request.path == '/' or request.path == '/admin' %}active{% endif %}">Admin</a>
         </div>
-    </nav>
+    </nav>    
 
     <div class="container">
         {% block content %}{% endblock %}

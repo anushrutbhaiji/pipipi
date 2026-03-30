@@ -21,13 +21,15 @@
         <h3 style="color: #166534; margin-bottom: 1rem;">✅ Match Found</h3>
         <div style="font-size: 1.2rem;">ID: #<span id="r_id"></span></div>
         <div style="font-size: 1.5rem; font-weight: 800; color: #1e293b;"><span id="r_name"></span></div>
-        <div style="color: #64748b; margin-bottom: 1rem;"><span id="r_size"></span> • <span id="r_weight"></span>g</div>
+        <div style="color: #64748b; margin-bottom: 1rem;"><span id="r_size"></span> • <span id="r_weight"></span>Kg</div>
         
         <div style="padding: 10px; background: white; border-radius: 8px; text-align: center; font-weight: bold; border: 2px solid green; color: green;" id="r_status_box">
             CHECKING...
         </div>
 
         <button class="btn" onclick="dispatchItem()" style="background: #166534; margin-top: 1rem;" id="dispatchBtn">MARK DISPATCHED</button>
+
+        <button class="btn" onclick="rejectItem()" style="background: #dc2626; margin-top: 1rem; margin-left: 10px;">🗑️ REJECT / DELETE</button>
     </div>
 </div>
 
@@ -136,6 +138,29 @@
         }
     }
 
+    // --- NEW: REJECT ACTION ---
+    async function rejectItem() {
+        if(!currentId) return;
+        
+        if(!confirm("⚠️ Are you sure you want to REJECT and DELETE this pipe? This cannot be undone.")) {
+            return;
+        }
+
+        const res = await fetch(`/api/labels/${currentId}`, { method: 'DELETE' });
+        
+        if(res.ok) {
+            showToast("🗑️ Pipe Rejected & Deleted!", true);
+            
+            // Hide the result box since the item is gone
+            document.getElementById('scanResult').style.display = 'none';
+            
+            // Clear input and Refocus
+            inputField.value = '';
+            inputField.focus();
+        } else {
+            showToast("❌ Error Deleting Item", true);
+        }
+    }
     // --- F. CAMERA CONFIGURATION (QR + BARCODE) ---
     const html5QrcodeScanner = new Html5QrcodeScanner(
         "reader", 

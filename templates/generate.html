@@ -3,19 +3,75 @@
 <style>
     /* --- BASE STYLES --- */
     .chip-container { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1rem; }
+    
     .chip { 
-        padding: 8px 10px; border: 2px solid #e2e8f0; border-radius: 8px; 
-        cursor: pointer; font-weight: 600; background: white; color: #64748b; 
-        flex: 1; text-align: center; min-width: 60px; font-size: 0.9rem;
+        padding: 15px 12px;             
+        border: 2px solid #e2e8f0; 
+        border-radius: 10px;            
+        cursor: pointer; 
+        font-weight: 700;               
+        background: white; 
+        color: #64748b; 
+        flex: 1; 
+        text-align: center; 
+        min-width: 80px;                
+        font-size: 1.1rem;              
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative; 
     }
+    
+    .chip:active { transform: scale(0.95); }
     .chip.active { background: #eff6ff; color: var(--primary); border-color: var(--primary); }
+    
+    /* --- AUTO-MODE COLORS --- */
+    .chip.active-green { 
+        background: #22c55e; /* Green */
+        color: white; 
+        border-color: #22c55e;
+        box-shadow: 0 4px 6px -1px rgba(34, 197, 94, 0.4);
+    }
+    .chip.active-red { 
+        background: #ef4444; /* Red */
+        color: white; 
+        border-color: #ef4444;
+        box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.4);
+    }
+
+    /* Delete 'X' inside chips */
+    .delete-x {
+        margin-left: 10px;
+        color: #ef4444; 
+        font-size: 1.4rem;
+        line-height: 1;
+        padding: 0 5px;
+        border-radius: 4px;
+        z-index: 10;
+    }
+    .delete-x:hover { background: #fee2e2; }
+
+    /* Add Button Style */
+    .chip.add-btn {
+        flex: 0;
+        min-width: 50px;
+        background: #f0fdf4; 
+        color: #16a34a;      
+        border-color: #bbf7d0;
+        font-size: 1.5rem;
+        line-height: 0;
+    }
+    .chip.add-btn:hover { background: #dcfce7; }
+
     .section-label { font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; font-weight: 700; margin-bottom: 5px; }
     
     /* --- PREVIEW BOX --- */
     .preview-box { 
         background: #f1f5f9; border-radius: 12px; padding: 1rem; 
         display: flex; justify-content: center; align-items: center; 
-        min-height: 180px; border: 2px dashed #cbd5e1; margin-bottom: 1rem;
+        min-height: 280px;  
+        border: 2px dashed #cbd5e1; margin-bottom: 1rem;
     }
     
     .label-visual {
@@ -24,7 +80,8 @@
         font-family: Arial, sans-serif;
         display: grid; grid-template-columns: 2fr 1fr; grid-template-rows: auto auto 1fr auto;
         gap: 5px; position: relative;
-        transform: scale(0.85); transform-origin: center;
+        transform: scale(1.2); 
+        transform-origin: center;
     }
 
     .lbl-header { grid-column: 1 / 2; grid-row: 1 / 2; align-self: start; }
@@ -77,10 +134,8 @@
         .card { padding: 15px; margin-bottom: 0; }
         h2 { display: none; } /* Hide title to save space */
         .navbar { padding: 5px 15px; } /* Slim navbar */
-        
-        /* Make preview smaller to fit */
-        .preview-box { min-height: 160px; padding: 0.5rem; }
-        .label-visual { transform: scale(0.65); }
+        .preview-box { min-height: 220px; padding: 0.5rem; }
+        .label-visual { transform: scale(0.9); }
     }
 </style>
 
@@ -95,6 +150,7 @@
                 <div class="chip active" onclick="select('operator', this, 'Shift-A')">Shift-A</div>
                 <div class="chip" onclick="select('operator', this, 'Shift-B')">Shift-B</div>
                 <div class="chip" onclick="select('operator', this, 'Night')">Night</div>
+                <button type="button" class="chip add-btn" onclick="addCustom('operator')">+</button>
             </div>
             <input type="hidden" id="operator" value="Shift-A">
 
@@ -104,6 +160,7 @@
                 <div class="chip" onclick="select('name', this, 'UltraPlast')">UltraPlast</div>
                 <div class="chip" onclick="select('name', this, 'KissanGreen')">KissanGreen</div>
                 <div class="chip" onclick="select('name', this, 'Casing')">Casing</div>
+                <button type="button" class="chip add-btn" onclick="addCustom('name')">+</button>
             </div>
             <input type="hidden" id="pipe_name" value="Gangotry">
 
@@ -112,6 +169,7 @@
                 <div class="chip active" onclick="select('pressure', this, '4kgf')">4 Kgf</div>
                 <div class="chip" onclick="select('pressure', this, '6kgf')">6 Kgf</div>
                 <div class="chip" onclick="select('pressure', this, '10kgf')">10 Kgf</div>
+                <button type="button" class="chip add-btn" onclick="addCustom('pressure')">+</button>
             </div>
             <input type="hidden" id="pressure" value="4kgf">
 
@@ -125,6 +183,7 @@
                 <div class="chip" onclick="select('size', this, '160mm')">160</div>
                 <div class="chip" onclick="select('size', this, '180mm')">180</div>
                 <div class="chip" onclick="select('size', this, '200mm')">200</div>
+                <button type="button" class="chip add-btn" onclick="addCustom('size')">+</button>
             </div>
             <input type="hidden" id="size" value="63mm">
 
@@ -139,8 +198,23 @@
         <div class="card right-panel" style="justify-content: space-between;">
             
             <div>
+                <div class="chip-container" style="justify-content: center; margin-bottom: 15px;">
+                    <div id="btn-auto-off" class="chip active-red" onclick="setAutoMode(false)">DISABLE</div>
+                    <div id="btn-auto-on" class="chip" onclick="setAutoMode(true)">ENABLE</div>
+                </div>
+                
                 <h3 style="margin-top:0; margin-bottom:5px; font-size:1rem; color:#64748b; text-align:center;">Live Preview</h3>
                 <div class="preview-box" id="previewArea"></div>
+                
+                <div style="background: #fff; border: 2px solid #e2e8f0; border-radius: 12px; padding: 10px 15px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+                    <div>
+                        <div style="font-size: 0.75rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Pipes Made</div>
+                        <div id="pipeCounterDisplay" style="font-size: 2.2rem; font-weight: 900; color: #334155; line-height: 1;">0</div>
+                    </div>
+                    <button type="button" onclick="resetCounter()" style="background: #fee2e2; color: #ef4444; border: none; padding: 8px 12px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 0.8rem; transition: background 0.2s;">
+                        RESET ⟳
+                    </button>
+                </div>
             </div>
 
             <div style="background: #f8fafc; padding: 10px; border-radius: 12px; border: 1px solid #e2e8f0;">
@@ -173,104 +247,305 @@
 
 {% block scripts %}
 <script>
-    window.onload = function() { updatePreview(); }
+    let isAutoEnabled = false;
 
+    window.onload = function() { 
+        loadCustoms(); 
+        loadLastSettings(); // Settings + Auto Button Status load karega
+        loadCounter(); 
+        updatePreview(); 
+    }
+
+    // --- 1. HELPER: SYNC TO SERVER (Yeh Missing tha) ---
+    function syncToServer(data) {
+        fetch('/api/settings/update', {
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        }).catch(e => console.log("Sync failed"));
+    }
+
+    // --- 2. SELECT FUNCTION ---
     function select(type, el, val) {
+        // 1. Set Value
         let inputId = (type === 'name') ? 'pipe_name' : type;
         document.getElementById(inputId).value = val;
-        let container = document.getElementById('group-'+type);
-        for(let c of container.getElementsByClassName('chip')) c.classList.remove('active');
-        el.classList.add('active');
-        updatePreview();
-    }
-
-    function addNum(val) {
-        let field = document.getElementById('weight_g');
-        let current = field.value;
-        if(val === '.' && current.includes('.')) return;
-        if(current.length > 7) return; 
-        if(val === '.' && current === '') field.value = '0.';
-        else field.value += val;
-        updatePreview();
-    }
-
-    function clearWeight() {
-        document.getElementById('weight_g').value = '';
-        updatePreview();
-    }
-
-    function submitForm() {
-        document.getElementById('realSubmitBtn').click();
-    }
-
-    function updatePreview(qrBase64 = null) {
-        const brand = document.getElementById('pipe_name').value;
-        const size = document.getElementById('size').value;
-        const color = document.getElementById('color').value;
-        const op = document.getElementById('operator').value;
-        const pressure = document.getElementById('pressure').value; 
-        const weight = document.getElementById('weight_g').value || '0.000';
         
-        let qrHtml = qrBase64 ? `<img src="${qrBase64}">` : `<span style="color:#ccc; font-size:12px;">QR Code</span>`;
+        // 2. SAVE TO SERVER (Global Sync)
+        let payload = {};
+        payload[type] = val;
+        syncToServer(payload); // Ab yeh function exist karta hai
 
-        const html = `
-        <div class="label-visual">
-            <div class="lbl-header">
-                <div class="lbl-brand">${brand}</div>
-                <div class="lbl-detail">${size} | ${color}</div>
-            </div>
-            <div class="lbl-qr-zone" id="previewQr">${qrHtml}</div>
-            <div class="lbl-weight-zone">${weight} Kg</div>
-            <div class="lbl-meta">
-                <span>Op: ${op} | <b>${pressure}</b></span>
-                <span>Date: ${new Date().toLocaleDateString()}</span>
-            </div>
-        </div>`;
-        document.getElementById('previewArea').innerHTML = html;
+        // 3. Visual Update (Blue Buttons)
+        let container = document.getElementById('group-'+type);
+        if(container) {
+            for(let c of container.getElementsByClassName('chip')) {
+                if(!c.classList.contains('add-btn')) c.classList.remove('active');
+            }
+            if (el) {
+                el.classList.add('active');
+            } else {
+                let cleanVal = val.toString().toLowerCase().replace(/\s/g, ''); 
+                for(let c of container.getElementsByClassName('chip')) {
+                    let btnText = c.innerText.toLowerCase().replace(/\s/g, ''); 
+                    if(cleanVal.includes(btnText) || btnText.includes(cleanVal)) {
+                        c.classList.add('active');
+                    }
+                }
+            }
+        }
+        
+        updatePreview();
+        if (typeof isAutoEnabled !== 'undefined' && isAutoEnabled) updateServerSettings();
     }
 
-    const form = document.getElementById('labelForm');
-    let isProcessing = false;
+    // --- 3. LOAD SETTINGS (Memory Logic Fixed) ---
+    function loadLastSettings() {
+        fetch('/api/settings/get')
+            .then(res => res.json())
+            .then(data => {
+                // Restore Buttons
+                ['operator', 'name', 'size', 'pressure', 'color'].forEach(type => {
+                    if (data[type]) select(type, null, data[type]);
+                });
 
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        if(isProcessing) return; 
-        let wt = parseFloat(document.getElementById('weight_g').value);
-        if (isNaN(wt) || wt <= 0) { showToast("Enter Weight!", true); return; }
+                // Restore Weight
+                if (data.weight) {
+                    document.getElementById('weight_g').value = data.weight;
+                    updatePreview();
+                }
 
-        isProcessing = true;
-        let printBtn = document.querySelector('button[onclick="submitForm()"]');
-        let originalText = printBtn.innerText;
-        printBtn.innerText = "⏳";
-        printBtn.style.opacity = "0.7";
+                // --- RESTORE AUTO BUTTON STATUS (Reboot Proof) ---
+                if (data.auto_enabled !== undefined) {
+                    isAutoEnabled = data.auto_enabled;
+                    updateAutoButtons(data.auto_enabled);
+                    
+                    // Agar ON tha, toh server hardware ko bhi ON signal bhejo
+                    if (data.auto_enabled) {
+                        setTimeout(() => {
+                             // Bina status save kiye bas hardware on karo
+                             let s = getCurrentSettingsObj();
+                             fetch('/api/autoprint/toggle', {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ enabled: true, settings: s })
+                             }).catch(e=>{});
+                        }, 500);
+                    }
+                }
+            })
+            .catch(err => console.log("Sync Error:", err));
+    }
 
-        let payload = {
-            operator: document.getElementById('operator').value,
+    // --- 4. SERVER SETTINGS UPDATE ---
+    function updateServerSettings() {
+        let settings = getCurrentSettingsObj();
+        fetch('/api/autoprint/toggle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled: true, settings: settings })
+        }).catch(err => console.error("Background update failed", err));
+    }
+
+    function getCurrentSettingsObj() {
+        return {
             pipe_name: document.getElementById('pipe_name').value,
             size: document.getElementById('size').value,
             color: document.getElementById('color').value,
-            pressure: document.getElementById('pressure').value, 
-            weight_g: wt.toFixed(3)
+            pressure: document.getElementById('pressure').value,
+            operator: document.getElementById('operator').value,
+            batch: "", // batch will be set to #<counter+1> when printing
+            weight_g: document.getElementById('weight_g').value || "0.000"
         };
+    }
 
+    // --- CUSTOM BUTTONS ---
+    function addCustom(type) {
+        let name = prompt("Enter new Name:");
+        if (!name) return;
+        createChipElement(type, name);
+        saveCustom(type, name);
+    }
+
+    function createChipElement(type, val) {
+        let container = document.getElementById('group-' + type);
+        let btn = document.createElement('div');
+        btn.className = 'chip';
+        btn.innerHTML = val + '<span class="delete-x" onclick="removeCustom(event, \''+type+'\', \''+val+'\', this.parentNode)">&times;</span>';
+        btn.onclick = function(e) { if(e.target.className !== 'delete-x') select(type, this, val); };
+        let addBtn = container.querySelector('.add-btn');
+        container.insertBefore(btn, addBtn);
+    }
+
+    function removeCustom(event, type, val, btnElement) {
+        event.stopPropagation(); 
+        if (!confirm("Delete '" + val + "'?")) return;
+        let key = 'custom_' + type;
+        let exist = JSON.parse(localStorage.getItem(key) || "[]");
+        localStorage.setItem(key, JSON.stringify(exist.filter(i => i !== val)));
+        btnElement.remove();
+    }
+    
+    function saveCustom(type, val) {
+        let key = 'custom_' + type;
+        let exist = JSON.parse(localStorage.getItem(key) || "[]");
+        if (!exist.includes(val)) { exist.push(val); localStorage.setItem(key, JSON.stringify(exist)); }
+    }
+
+    function loadCustoms() {
+        ['operator', 'name', 'pressure', 'size'].forEach(type => {
+            let saved = JSON.parse(localStorage.getItem('custom_' + type) || "[]");
+            saved.forEach(val => createChipElement(type, val));
+        });
+    }
+
+    // --- COUNTER LOGIC ---
+    setInterval(fetchCounter, 5000); // Check every 5 secs (Optimized)
+
+    async function fetchCounter() {
         try {
+            const res = await fetch('/api/counter');
+            document.getElementById('pipeCounterDisplay').innerText = (await res.json()).count;
+        } catch (e) {}
+    }
+    function loadCounter() { fetchCounter(); }
+
+    async function resetCounter() {
+        if(confirm("Reset Counter?")) {
+            await fetch('/api/counter/reset', { method: 'POST' });
+            fetchCounter();
+        }
+    }
+    
+    // --- NUMPAD & FORM ---
+    function addNum(val) {
+        let field = document.getElementById('weight_g');
+        if(val === '.' && field.value.includes('.')) return;
+        if(field.value.length > 7) return; 
+        field.value += val;
+        
+        // Sync Weight
+        syncToServer({ weight: field.value });
+
+        updatePreview();
+        if (isAutoEnabled) updateServerSettings();
+    }
+    
+    function clearWeight() {
+        document.getElementById('weight_g').value = '';
+        syncToServer({ weight: '' });
+        updatePreview();
+    }
+
+    function submitForm() { document.getElementById('realSubmitBtn').click(); }
+
+    function updatePreview(qrBase64 = null) {
+        const s = getCurrentSettingsObj();
+        let qrHtml = qrBase64 ? `<img src="${qrBase64}">` : `<span style="color:#ccc; font-size:12px;">QR Code</span>`;
+
+        document.getElementById('previewArea').innerHTML = `
+        <div class="label-visual">
+            <div class="lbl-header">
+                <div class="lbl-brand">${s.pipe_name}</div>
+                <div class="lbl-detail">${s.size}mm | ${s.color}</div>
+            </div>
+            <div class="lbl-qr-zone">${qrHtml}</div>
+            <div class="lbl-weight-zone">${s.weight_g} Kg</div>
+            <div class="lbl-meta">
+                <span>Op: ${s.operator} | <b>${s.pressure}</b> ${s.batch ? '| ' + s.batch : ''}</span>
+                <span>Date: ${new Date().toLocaleDateString()}</span>
+            </div>
+        </div>`; 
+    }
+
+    document.getElementById('labelForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        let wt = parseFloat(document.getElementById('weight_g').value);
+        if (isNaN(wt) || wt <= 0) { alert("Enter Weight!"); return; }
+
+        let payload = getCurrentSettingsObj();
+        try {
+            // Get current counter and use next number for batch
+            try {
+                const cntRes = await fetch('/api/counter');
+                if (cntRes.ok) {
+                    const cntData = await cntRes.json();
+                    payload.batch = `#${cntData.count + 1}`;
+                } else {
+                    payload.batch = payload.batch || '#1';
+                }
+            } catch (e) {
+                payload.batch = payload.batch || '#1';
+            }
+
             const res = await fetch('/api/labels', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
             const data = await res.json();
             if (data.success) {
                 updatePreview(data.qr_image);
-                showToast("Printing...");
-                let printPayload = { id: data.label.id, pressure: payload.pressure };
-                const pRes = await fetch('/api/print', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(printPayload) });
-                if ((await pRes.json()).success) showToast("Printed!");
+                await fetch('/api/print', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id: data.label.id, pressure: payload.pressure }) });
+                fetchCounter();
             }
-        } catch (e) { showToast("Error", true); }
-        finally {
-            isProcessing = false;
-            printBtn.innerText = originalText;
-            printBtn.style.opacity = "1";
-            document.getElementById('weight_g').value = '';
-        }
+        } catch (e) { alert("Error Printing"); }
     });
+
+    // --- AUTO MODE LOGIC (Fixed) ---
+    function setAutoMode(turnOn) {
+        isAutoEnabled = turnOn;
+        updateAutoButtons(turnOn);
+        
+        // 1. Save Status to Memory (Reboot Proof)
+        syncToServer({ auto_enabled: turnOn });
+
+        // 2. Hardware Toggle
+        let payload = { enabled: turnOn };
+        if (turnOn) payload.settings = getCurrentSettingsObj();
+
+        fetch('/api/autoprint/toggle', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        }).catch(e => console.error("Auto toggle failed"));
+    }
+
+    function updateAutoButtons(isOn) {
+        isAutoEnabled = isOn;
+        const btnOn = document.getElementById('btn-auto-on');
+        const btnOff = document.getElementById('btn-auto-off');
+        if (isOn) {
+            btnOn.classList.add('active-green');
+            btnOff.classList.remove('active-red');
+        } else {
+            btnOn.classList.remove('active-green');
+            btnOff.classList.add('active-red');
+        }
+    }
+
+    // --- LIVE SYNC (Also syncs Auto Button status) ---
+    setInterval(function() {
+        fetch('/api/settings/get')
+            .then(res => res.json())
+            .then(remote => {
+                // Sync Chips
+                const fields = ['name', 'size', 'pressure', 'color', 'operator'];
+                fields.forEach(type => {
+                    let inputId = (type === 'name') ? 'pipe_name' : type;
+                    let currentVal = document.getElementById(inputId).value;
+                    if (remote[type] && remote[type] !== currentVal) select(type, null, remote[type]);
+                });
+
+                // Sync Weight
+                let currentWt = document.getElementById('weight_g').value;
+                if (remote.weight && remote.weight !== currentWt && document.activeElement.id !== 'weight_g') {
+                    document.getElementById('weight_g').value = remote.weight;
+                    updatePreview();
+                }
+
+                // Sync Auto Button (Taaki doosre device pe dikhe)
+                if (remote.auto_enabled !== undefined && remote.auto_enabled !== isAutoEnabled) {
+                    isAutoEnabled = remote.auto_enabled;
+                    updateAutoButtons(isAutoEnabled);
+                }
+            })
+            .catch(e => {});
+    }, 12000);
 </script>
 {% endblock %}
-{% endblock %}
+{% endblock %}  

@@ -1,0 +1,1459 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="डिस्पैच">
+<meta name="theme-color" content="#0a0a0a">
+<title>Dispatch Hub • डिस्पैच हब</title>
+<script>
+  const _m={name:"Dispatch Hub",short_name:"डिस्पैच",start_url:"/dispatch_mobile",display:"standalone",background_color:"#0a0a0a",theme_color:"#0a0a0a"};
+  document.write(`<link rel="manifest" href="${URL.createObjectURL(new Blob([JSON.stringify(_m)],{type:'application/json'}))}">`);
+</script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:#0a0a0a;--bg2:#111;--bg3:#181818;--bg4:#222;--bg5:#2a2a2a;
+  --b1:#2a2a2a;--b2:#333;--b3:#3d3d3d;
+  --t:#f0f0f0;--dim:#666;--muted:#3a3a3a;
+  --green:#00e676;--red:#ff1744;--amber:#ffab00;--blue:#448aff;
+  --mono:'IBM Plex Mono',monospace;
+  --sans:'IBM Plex Sans','Noto Sans Devanagari',sans-serif;
+  --dev:'Noto Sans Devanagari','IBM Plex Sans',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;background:var(--bg);color:var(--t);font-family:var(--sans);overscroll-behavior:none;}
+.screen{display:none;flex-direction:column;height:100dvh;overflow:hidden;}
+.screen.active{display:flex;}
+.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.scroll::-webkit-scrollbar{width:2px;}
+.scroll::-webkit-scrollbar-thumb{background:var(--b2);}
+
+/* TOPBAR */
+.topbar{background:var(--bg2);border-bottom:1px solid var(--b1);padding:max(.9rem,env(safe-area-inset-top)) 1.1rem .9rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.brand .b-en{font-family:var(--mono);font-size:.62rem;font-weight:700;letter-spacing:.14em;color:var(--dim);text-transform:uppercase;}
+.brand .b-hi{font-family:var(--dev);font-size:1.05rem;font-weight:700;color:var(--t);display:block;}
+.mode-pill{font-family:var(--mono);font-size:.58rem;font-weight:700;padding:2px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:.06em;}
+.mode-pill.dp{background:#00e67615;color:var(--green);border:1px solid #00e67628;}
+.mode-pill.rt{background:#ff174415;color:var(--red);border:1px solid #ff174428;}
+
+/* FORM */
+.fg{margin-bottom:.85rem;}
+.fg:last-child{margin-bottom:0;}
+.lbl{display:block;margin-bottom:.4rem;}
+.lbl .le{font-family:var(--mono);font-size:.58rem;font-weight:700;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;}
+.lbl .lh{font-family:var(--dev);font-size:.82rem;color:var(--dim);display:block;margin-top:1px;}
+.row-in{display:flex;gap:.4rem;align-items:stretch;}
+.row-in input{flex:1;min-width:0;}
+input.dk{
+  width:100%;background:var(--bg3);border:1.5px solid var(--b1);border-radius:9px;
+  padding:.82rem .95rem;color:var(--t);font-family:var(--mono);font-size:.95rem;
+  font-weight:600;outline:none;transition:border-color .15s,box-shadow .15s;
+}
+input.dk:focus{border-color:var(--green);box-shadow:0 0 0 3px #00e67612;}
+input.dk::placeholder{color:var(--muted);font-weight:400;font-size:.82rem;}
+input.dk.err{border-color:var(--red);}
+input.dk.hi{border-color:var(--green);}
+
+/* ICON BUTTONS */
+.ibtn{
+  background:var(--bg3);border:1.5px solid var(--b2);border-radius:9px;
+  width:42px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  font-size:1.1rem;cursor:pointer;transition:all .15s;
+}
+.ibtn:active{background:var(--bg4);border-color:var(--green);}
+.ibtn.on{border-color:var(--red);background:#ff174412;}
+.ibtn.spin-anim{animation:spin 1s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ibtn.pulse{animation:pr 1s ease-in-out infinite;}
+@keyframes pr{0%,100%{box-shadow:0 0 0 0 #ff174440}50%{box-shadow:0 0 0 8px transparent}}
+
+/* ═══ SETUP SCREEN ═══ */
+#sc-setup .scroll{padding:1.1rem 1.1rem 2.5rem;}
+.setup-hero{text-align:center;padding:.6rem 0 1.3rem;}
+.setup-hero .icon{font-size:2.4rem;display:block;margin-bottom:.4rem;}
+.setup-hero .sh{font-family:var(--dev);font-size:1.25rem;font-weight:700;}
+.setup-hero .se{font-family:var(--mono);font-size:.62rem;color:var(--dim);letter-spacing:.1em;text-transform:uppercase;display:block;margin-top:3px;}
+.sec-card{background:var(--bg2);border:1px solid var(--b1);border-radius:12px;padding:1rem;margin-bottom:.9rem;}
+.sec-label{font-family:var(--mono);font-size:.58rem;font-weight:700;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;margin-bottom:.8rem;display:block;}
+
+/* Plate history strip */
+.plates-strip{margin-top:.75rem;}
+.ps-label{font-family:var(--mono);font-size:.55rem;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;margin-bottom:.4rem;}
+.ps-list{display:flex;gap:.5rem;overflow-x:auto;padding-bottom:3px;}
+.ps-list::-webkit-scrollbar{height:2px;}
+.ps-list::-webkit-scrollbar-thumb{background:var(--b2);}
+.ps-thumb{flex-shrink:0;background:var(--bg3);border:1px solid var(--b2);border-radius:8px;overflow:hidden;width:100px;cursor:pointer;}
+.ps-thumb:active{border-color:var(--green);}
+.ps-thumb img{width:100%;height:52px;object-fit:cover;display:block;}
+.ps-thumb .pn{font-family:var(--mono);font-size:.62rem;font-weight:700;padding:3px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--t);}
+.ps-empty{font-family:var(--mono);font-size:.65rem;color:var(--muted);}
+
+/* Start buttons */
+.start-btns{display:flex;flex-direction:column;gap:.6rem;}
+.btn-big{
+  width:100%;border:none;border-radius:10px;padding:.88rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:.5rem;transition:opacity .12s;
+}
+.btn-big:active{opacity:.82;}
+.btn-big .bh{font-family:var(--dev);font-size:1rem;font-weight:700;}
+.btn-big .be{font-family:var(--mono);font-size:.6rem;font-weight:600;opacity:.65;margin-left:.2rem;}
+.btn-go{background:var(--green);color:#000;}
+.btn-ret{background:transparent;border:1.5px solid var(--red) !important;color:var(--red);}
+
+/* ═══ SCAN SCREEN ═══ */
+.kpi-strip{display:grid;grid-template-columns:1fr 1fr;background:var(--bg2);border-bottom:1px solid var(--b1);flex-shrink:0;}
+.kc{padding:.72rem 1.1rem;border-right:1px solid var(--b1);}
+.kc:last-child{border-right:none;}
+.kc .kle{font-family:var(--mono);font-size:.56rem;letter-spacing:.1em;color:var(--dim);text-transform:uppercase;}
+.kc .klh{font-family:var(--dev);font-size:.72rem;color:var(--dim);display:block;}
+.kv{font-family:var(--mono);font-size:1.6rem;font-weight:700;line-height:1;}
+.kv.g{color:var(--green);}.kv.r{color:var(--red);}
+
+/* Tabs */
+.tabs{display:flex;background:var(--bg2);border-bottom:1px solid var(--b1);flex-shrink:0;}
+.tab{flex:1;padding:.55rem .3rem;text-align:center;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;}
+.tab .te{font-family:var(--mono);font-size:.6rem;font-weight:700;letter-spacing:.06em;color:var(--dim);text-transform:uppercase;}
+.tab .th{font-family:var(--dev);font-size:.75rem;color:var(--dim);display:block;margin-top:1px;}
+.tab.active .te,.tab.active .th{color:var(--green);}
+.tab.active{border-bottom-color:var(--green);}
+.tc{font-family:var(--mono);font-size:.55rem;background:var(--bg4);color:var(--dim);border-radius:20px;padding:0 5px;margin-left:2px;}
+.tc.bad{background:#ff174420;color:var(--red);}
+
+.tab-panels{flex:1;overflow:hidden;min-height:0;}
+.tp{display:none;height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.tp::-webkit-scrollbar{width:2px;}
+.tp::-webkit-scrollbar-thumb{background:var(--b1);}
+.tp.active{display:block;}
+
+/* ── SCAN TAB ── */
+.scan-inner{padding:.9rem 1.1rem;display:flex;flex-direction:column;gap:.85rem;}
+.scan-card{background:var(--bg2);border:1px solid var(--b1);border-radius:12px;overflow:hidden;}
+.sch{display:flex;align-items:center;justify-content:space-between;padding:.58rem .95rem;background:var(--bg3);border-bottom:1px solid var(--b1);}
+.sch .she{font-family:var(--mono);font-size:.6rem;font-weight:700;letter-spacing:.1em;color:var(--dim);text-transform:uppercase;}
+.sch .shh{font-family:var(--dev);font-size:.78rem;color:var(--dim);}
+.sdot{font-family:var(--mono);font-size:.62rem;font-weight:700;}
+.sdot.rdy{color:var(--green);}.sdot.cam{color:var(--amber);}
+#scan-disp{
+  width:100%;background:var(--bg3);border:none;border-bottom:1px solid var(--b1);
+  padding:.88rem 1rem;font-family:var(--mono);font-size:1.05rem;font-weight:700;
+  text-align:center;color:var(--t);outline:none;letter-spacing:.06em;
+}
+#scan-disp::placeholder{color:var(--muted);font-size:.78rem;font-weight:400;}
+#scan-disp:focus{border-bottom-color:var(--green);}
+.sstat-wrap{padding:.58rem .95rem;min-height:36px;display:flex;flex-direction:column;justify-content:center;}
+.sstat{font-family:var(--dev);font-size:.82rem;font-weight:600;}
+.sstat.ok{color:var(--green);}.sstat.warn{color:var(--amber);}.sstat.err{color:var(--red);}.sstat.idle{color:var(--dim);}
+.scan-btns{display:flex;gap:.45rem;padding:.65rem .95rem;border-top:1px solid var(--b1);}
+.sbtn{flex:1;background:var(--bg3);border:1px solid var(--b2);border-radius:8px;padding:.45rem .3rem;cursor:pointer;text-align:center;transition:all .12s;}
+.sbtn:active{background:var(--bg4);}
+.sbtn.on{border-color:var(--green);background:#00e67610;}
+.sbtn .si{display:block;font-size:.95rem;}
+.sbtn .sh2{font-family:var(--dev);font-size:.65rem;color:var(--dim);display:block;margin-top:1px;}
+
+/* Inline camera */
+.cam-inline{display:none;position:relative;background:#000;}
+.cam-inline.on{display:block;}
+.cam-inline video{width:100%;max-height:34vh;object-fit:cover;display:block;}
+.cam-inline canvas{display:none;}
+.vfw{position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center;}
+.vfb{width:185px;height:130px;position:relative;}
+.vc{position:absolute;width:17px;height:17px;border-color:var(--green);border-style:solid;}
+.vc.tl{top:0;left:0;border-width:3px 0 0 3px;border-radius:3px 0 0 0;}
+.vc.tr{top:0;right:0;border-width:3px 3px 0 0;border-radius:0 3px 0 0;}
+.vc.bl{bottom:0;left:0;border-width:0 0 3px 3px;border-radius:0 0 0 3px;}
+.vc.br{bottom:0;right:0;border-width:0 3px 3px 0;border-radius:0 0 3px 0;}
+.vl{position:absolute;left:4px;right:4px;height:2px;background:linear-gradient(90deg,transparent,var(--green),transparent);animation:sl 2s ease-in-out infinite;}
+@keyframes sl{0%{top:4px;opacity:1}90%{top:calc(100% - 4px);opacity:1}100%{top:4px;opacity:0}}
+.cam-flash{position:absolute;inset:0;background:rgba(0,230,118,.3);pointer-events:none;opacity:0;}
+.cam-flash.go{animation:cfl .28s ease-out forwards;}
+@keyframes cfl{0%{opacity:1}100%{opacity:0}}
+.btn-xcam{position:absolute;top:.5rem;right:.5rem;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.12);border-radius:50%;width:28px;height:28px;font-size:.75rem;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+/* ── INLINE SHUTTER ── */
+.inline-shutter-row{position:absolute;bottom:.8rem;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:.3rem;pointer-events:none;}
+.inline-shutter{
+  pointer-events:all;width:60px;height:60px;border-radius:50%;
+  background:rgba(255,255,255,.93);
+  border:4px solid rgba(255,255,255,.35);
+  box-shadow:0 0 0 3px rgba(0,230,118,.55),0 4px 18px rgba(0,0,0,.55);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:transform .1s,box-shadow .1s;
+  -webkit-tap-highlight-color:transparent;
+}
+.inline-shutter:active{transform:scale(.86);box-shadow:0 0 0 7px rgba(0,230,118,.75),0 2px 8px rgba(0,0,0,.4);}
+.inline-shutter svg{width:28px;height:28px;}
+.inline-shutter-label{
+  pointer-events:none;font-family:var(--dev);
+  font-size:.65rem;color:rgba(255,255,255,.5);white-space:nowrap;
+}
+@keyframes shutter-ping{
+  0%{box-shadow:0 0 0 3px rgba(0,230,118,.8),0 4px 18px rgba(0,0,0,.55)}
+  60%{box-shadow:0 0 0 12px rgba(0,230,118,0),0 4px 18px rgba(0,0,0,.55)}
+  100%{box-shadow:0 0 0 3px rgba(0,230,118,.55),0 4px 18px rgba(0,0,0,.55)}
+}
+.inline-shutter.ping{animation:shutter-ping .45s ease-out;}
+
+/* Meta card */
+.meta-card{background:var(--bg2);border:1px solid var(--b1);border-radius:12px;padding:.9rem 1rem;}
+.mct .mce{font-family:var(--mono);font-size:.58rem;font-weight:700;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;}
+.mct .mch{font-family:var(--dev);font-size:.8rem;color:var(--dim);display:block;margin-top:1px;margin-bottom:.75rem;}
+.mgrid{display:grid;grid-template-columns:1fr 1fr;gap:.65rem;}
+.mi .mle{font-family:var(--mono);font-size:.55rem;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;}
+.mi .mlh{font-family:var(--dev);font-size:.7rem;color:var(--dim);display:block;}
+.mi .mv{font-family:var(--mono);font-size:.85rem;font-weight:700;margin-top:2px;}
+
+/* Action bar */
+.act-bar{display:flex;gap:.6rem;padding:.75rem 1.1rem;padding-bottom:max(.75rem,env(safe-area-inset-bottom));background:var(--bg2);border-top:1px solid var(--b1);flex-shrink:0;}
+.btn-new2{background:transparent;border:1px solid var(--b2);color:var(--dim);border-radius:9px;padding:.52rem .85rem;font-family:var(--mono);font-size:.68rem;font-weight:600;cursor:pointer;white-space:nowrap;}
+.btn-new2:active{background:var(--bg4);}
+.btn-fin{flex:1;background:var(--green);color:#000;border:none;border-radius:9px;padding:.65rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.35rem;}
+.btn-fin .bfh{font-family:var(--dev);font-size:.92rem;font-weight:700;}
+.btn-fin .bfe{font-family:var(--mono);font-size:.6rem;font-weight:600;opacity:.7;}
+.btn-fin:active{opacity:.85;}
+.btn-fin.ret{background:var(--red);color:#fff;}
+
+/* ── SUMMARY TAB ── */
+.sum-inner{padding:.85rem 1.1rem;}
+.sum-stats{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;margin-bottom:.85rem;}
+.ss{background:var(--bg2);border:1px solid var(--b1);border-radius:9px;padding:.6rem .85rem;text-align:center;}
+.ss .sse{font-family:var(--mono);font-size:.58rem;letter-spacing:.08em;color:var(--dim);text-transform:uppercase;}
+.ss .ssh{font-family:var(--dev);font-size:.75rem;color:var(--dim);display:block;}
+.ss .ssv{font-family:var(--mono);font-size:1.25rem;font-weight:700;margin-top:2px;}
+.ssv.g{color:var(--green);}
+.stbl{width:100%;border-collapse:collapse;background:var(--bg2);border:1px solid var(--b1);border-radius:10px;overflow:hidden;}
+.stbl thead tr{background:var(--bg3);}
+.stbl th{padding:.48rem .65rem;font-family:var(--mono);font-size:.58rem;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;text-align:left;border-bottom:1px solid var(--b1);}
+.stbl td{padding:.52rem .65rem;border-bottom:1px solid var(--bg3);font-size:.8rem;}
+.stbl tbody tr:last-child td{border-bottom:none;}
+.stbl tbody tr:active{background:var(--bg3);}
+.cdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:middle;}
+.empty-s{text-align:center;padding:2.5rem 1rem;}
+.empty-s .ei{font-size:1.8rem;display:block;margin-bottom:.4rem;opacity:.25;}
+.empty-s .eh{font-family:var(--dev);font-size:.88rem;color:var(--dim);}
+.empty-s .ee{font-family:var(--mono);font-size:.65rem;color:var(--muted);display:block;margin-top:3px;}
+
+/* ── LOG TAB ── */
+.log-list{list-style:none;}
+.li2{display:flex;align-items:flex-start;gap:.6rem;padding:.62rem 1.1rem;border-bottom:1px solid var(--b1);}
+.li2:last-child{border-bottom:none;}
+.ldot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:.28rem;}
+.ldot.ok{background:var(--green);}.ldot.warn{background:var(--amber);}.ldot.err{background:var(--red);}.ldot.info{background:var(--blue);}
+.lm{flex:1;min-width:0;}
+.lm .lt{font-family:var(--dev);font-size:.8rem;font-weight:600;line-height:1.4;}
+.lm .ls{font-family:var(--mono);font-size:.62rem;color:var(--dim);margin-top:1px;}
+.ltime{font-family:var(--mono);font-size:.58rem;color:var(--muted);flex-shrink:0;margin-top:2px;white-space:nowrap;}
+.lbadge{display:inline-block;font-family:var(--mono);font-size:.55rem;font-weight:700;padding:1px 5px;border-radius:20px;text-transform:uppercase;margin-left:3px;vertical-align:middle;}
+.lbadge.ok{background:#00e67615;color:var(--green);}
+.lbadge.dup{background:#ffab0015;color:var(--amber);}
+.lbadge.err{background:#ff174415;color:var(--red);}
+
+/* ═══ FULLSCREEN CAMERA MODAL ═══ */
+.fullcam{display:none;position:fixed;inset:0;z-index:9000;background:#000;flex-direction:column;}
+.fullcam.open{display:flex;}
+.fchead{position:absolute;top:0;left:0;right:0;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:max(.9rem,env(safe-area-inset-top)) 1.1rem .9rem;background:linear-gradient(to bottom,rgba(0,0,0,.8),transparent);}
+.fchead .fce{font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;color:rgba(255,255,255,.45);text-transform:uppercase;}
+.fchead .fch{font-family:var(--dev);font-size:.95rem;font-weight:700;color:#fff;display:block;}
+.fchead button{background:none;border:none;color:rgba(255,255,255,.6);font-size:1.35rem;cursor:pointer;padding:.2rem;}
+.fcbody{flex:1;position:relative;overflow:hidden;}
+.fcbody video{width:100%;height:100%;object-fit:cover;display:block;}
+.fcbody canvas{display:none;}
+.fc-hint{position:absolute;bottom:5.5rem;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.55);border-radius:20px;padding:.4rem 1rem;text-align:center;pointer-events:none;}
+.fc-hint .fhh{font-family:var(--dev);font-size:.82rem;color:rgba(255,255,255,.75);display:block;}
+.fc-hint .fhe{font-family:var(--mono);font-size:.58rem;color:rgba(255,255,255,.4);display:block;margin-top:1px;letter-spacing:.06em;}
+.fcflash{position:absolute;inset:0;background:rgba(0,230,118,.35);pointer-events:none;opacity:0;}
+.fcflash.go{animation:cfl .3s ease-out forwards;}
+.shutter-row{position:absolute;bottom:max(1.4rem,env(safe-area-inset-bottom));left:0;right:0;display:flex;align-items:center;justify-content:center;}
+.shutter{width:62px;height:62px;border-radius:50%;background:#fff;border:4px solid rgba(255,255,255,.3);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.5rem;}
+.shutter:active{transform:scale(.91);}
+/* QR scanning mode: no shutter */
+.shutter-row.qr-mode{display:none;}
+
+/* ═══ PLATE PREVIEW MODAL ═══ */
+.plate-preview{display:none;position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.92);flex-direction:column;align-items:center;justify-content:center;padding:1.5rem;gap:1rem;}
+.plate-preview.open{display:flex;}
+.pp-title .ppt-hi{font-family:var(--dev);font-size:1.05rem;font-weight:700;text-align:center;display:block;}
+.pp-title .ppt-en{font-family:var(--mono);font-size:.6rem;color:var(--dim);letter-spacing:.08em;display:block;text-align:center;margin-top:2px;}
+.pp-img{max-width:100%;max-height:30vh;border-radius:10px;border:2px solid var(--b2);object-fit:contain;}
+.pp-ocr{width:100%;max-width:320px;}
+.pp-ocr .pol{font-family:var(--dev);font-size:.82rem;color:var(--dim);display:block;margin-bottom:.4rem;}
+.ocr-loading{display:flex;align-items:center;gap:.6rem;padding:.5rem 0;}
+.ocr-loading .sp{animation:spin 1s linear infinite;font-size:1.1rem;}
+.ocr-loading .ol{font-family:var(--dev);font-size:.82rem;color:var(--dim);}
+#ocr-result-input{
+  width:100%;background:var(--bg3);border:2px solid var(--green);border-radius:9px;
+  padding:.75rem 1rem;color:var(--t);font-family:var(--mono);font-size:1.1rem;
+  font-weight:700;outline:none;text-align:center;letter-spacing:.1em;text-transform:uppercase;
+}
+.pp-actions{display:flex;gap:.6rem;width:100%;max-width:320px;}
+.pp-actions button{flex:1;padding:.75rem;border-radius:9px;font-family:var(--dev);font-size:.9rem;font-weight:700;cursor:pointer;border:none;}
+.btn-use{background:var(--green);color:#000;}
+.btn-use:active{opacity:.85;}
+.btn-retake{background:var(--bg3);color:var(--t);border:1.5px solid var(--b2) !important;}
+.btn-retake:active{background:var(--bg4);}
+
+/* ═══ DETAIL BOTTOM SHEET ═══ */
+.bsbg{display:none;position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.75);}
+.bsbg.open{display:flex;align-items:flex-end;}
+.bssheet{background:var(--bg2);border-radius:14px 14px 0 0;width:100%;max-height:68vh;display:flex;flex-direction:column;animation:su .18s ease-out;}
+@keyframes su{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.bshd{padding:.85rem 1.1rem;border-bottom:1px solid var(--b1);display:flex;justify-content:space-between;align-items:center;}
+.bshd h5{font-family:var(--dev);font-size:.92rem;font-weight:700;margin:0;}
+.bshd button{background:none;border:none;color:var(--dim);font-size:1.2rem;cursor:pointer;}
+.bsbody{overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;}
+.bsrow{display:flex;justify-content:space-between;align-items:center;padding:.58rem 1.1rem;border-bottom:1px solid var(--b1);}
+.bsrow:last-child{border-bottom:none;}
+.bsid{font-family:var(--mono);font-size:.82rem;font-weight:700;}
+.bswt{font-family:var(--mono);font-size:.72rem;color:var(--dim);}
+.bsrm{background:none;border:1px solid var(--red);color:var(--red);border-radius:6px;font-family:var(--mono);font-size:.62rem;padding:3px 8px;cursor:pointer;font-weight:600;}
+
+/* ═══ CONFIRM SCREEN ═══ */
+#sc-confirm{overflow-y:auto;padding:1.2rem 1.1rem 2rem;}
+.cfh{text-align:center;padding:.5rem 0 .8rem;}
+.cfh .ci{font-size:2rem;display:block;}
+.cfh .chh{font-family:var(--dev);font-size:1.15rem;font-weight:700;}
+.cf-card{background:var(--bg2);border:1px solid var(--b1);border-radius:12px;overflow:hidden;margin-bottom:1rem;}
+.cfrow{display:flex;justify-content:space-between;align-items:center;padding:.72rem 1.1rem;border-bottom:1px solid var(--b1);}
+.cfrow:last-child{border-bottom:none;}
+.cfle{font-family:var(--mono);font-size:.58rem;font-weight:700;letter-spacing:.1em;color:var(--dim);text-transform:uppercase;}
+.cflh{font-family:var(--dev);font-size:.8rem;color:var(--dim);display:block;}
+.cfv{font-family:var(--mono);font-size:.88rem;font-weight:700;}
+.cfv.big{font-size:1.4rem;color:var(--green);}
+.cfv.bigr{font-size:1.4rem;color:var(--red);}
+.cfacts{display:flex;flex-direction:column;gap:.6rem;}
+.btn-cf{width:100%;border:none;border-radius:10px;padding:.88rem;cursor:pointer;}
+.btn-cf .bch{font-family:var(--dev);font-size:1rem;font-weight:700;display:block;}
+.btn-cf .bce{font-family:var(--mono);font-size:.6rem;font-weight:600;opacity:.65;display:block;margin-top:1px;}
+.btn-cf.go{background:var(--green);color:#000;}
+.btn-cf.goret{background:var(--red);color:#fff;}
+.btn-cf.bk{background:transparent;border:1.5px solid var(--b2);color:var(--dim);}
+.btn-cf:disabled{opacity:.45;cursor:not-allowed;}
+
+/* ═══ SUCCESS SCREEN ═══ */
+#sc-success{align-items:center;justify-content:center;gap:1.6rem;padding:2rem;text-align:center;}
+.sring{width:82px;height:82px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2rem;animation:pop .5s cubic-bezier(.34,1.56,.64,1);}
+@keyframes pop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+.sring.ok{background:#00e67612;border:2px solid var(--green);}
+.sring.ret{background:#ff174412;border:2px solid var(--red);}
+.stitle-h{font-family:var(--dev);font-size:1.1rem;font-weight:700;}
+.stitle-h.ok{color:var(--green);}.stitle-h.ret{color:var(--red);}
+.ssub{font-family:var(--mono);font-size:.65rem;color:var(--dim);margin-top:.2rem;}
+.smeta{background:var(--bg2);border:1px solid var(--b1);border-radius:10px;padding:1rem 1.1rem;width:100%;max-width:290px;}
+.smrow{display:flex;justify-content:space-between;padding:.28rem 0;font-family:var(--mono);font-size:.78rem;border-bottom:1px solid var(--b1);}
+.smrow:last-child{border-bottom:none;}
+.sml{color:var(--dim);}.smv{font-weight:700;}
+.sbtns{display:flex;flex-direction:column;gap:.55rem;width:100%;max-width:290px;}
+.btn-snew{background:var(--green);color:#000;border:none;border-radius:9px;padding:.82rem;font-family:var(--dev);font-size:.95rem;font-weight:700;cursor:pointer;}
+.btn-snew:active{opacity:.85;}
+.btn-sret{background:transparent;border:1.5px solid var(--red);color:var(--red);border-radius:9px;padding:.75rem;font-family:var(--dev);font-size:.9rem;font-weight:700;cursor:pointer;}
+</style>
+</head>
+<body>
+
+<!-- ══ HIDDEN USB INPUT ══ -->
+<input type="text" id="usb-in" inputmode="none" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="position:absolute; left:-9999px; top:-9999px;">
+
+<!-- ══════════════════════════════════
+     SETUP SCREEN  |  सेटअप स्क्रीन
+══════════════════════════════════ -->
+<div class="screen active" id="sc-setup">
+  <div class="topbar">
+    <div class="brand">
+      <span class="b-en">Dispatch Hub</span>
+      <span class="b-hi">डिस्पैच हब</span>
+    </div>
+    <a href="/admin" style="font-family:var(--mono);font-size:.62rem;color:var(--dim);text-decoration:none;">Admin ↗</a>
+  </div>
+
+  <div class="scroll">
+    <div class="setup-hero">
+      <span class="icon">🚚</span>
+      <div class="sh">नया शिपमेंट</div>
+      <span class="se">New Shipment Setup</span>
+    </div>
+
+    <!-- Challan -->
+    <div class="sec-card">
+      <span class="sec-label">चालान विवरण · Challan Details</span>
+      <div class="fg">
+        <label class="lbl">
+          <span class="le">Challan Number</span>
+          <span class="lh">चालान नंबर *</span>
+        </label>
+        <div class="row-in">
+          <input class="dk" type="text" id="f-challan" placeholder="जैसे: 1042" maxlength="10" autocomplete="off" inputmode="numeric">
+          <button class="ibtn" id="btn-scan-challan" title="Scan challan QR">📷</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vehicle & Driver -->
+    <div class="sec-card">
+      <span class="sec-label">वाहन विवरण · Vehicle Details</span>
+
+      <div class="fg">
+        <label class="lbl">
+          <span class="le">Vehicle Number</span>
+          <span class="lh">वाहन नंबर</span>
+        </label>
+        <div class="row-in">
+          <input class="dk" type="text" id="f-vehicle" placeholder="जैसे: HR55AB1234" maxlength="15" autocomplete="off" style="text-transform:uppercase">
+          <button class="ibtn" id="btn-mic-vehicle" title="बोलकर भरें">🎙️</button>
+          <button class="ibtn" id="btn-plate-cam" title="नंबर प्लेट फोटो लें">🔢</button>
+        </div>
+        <!-- Plate history -->
+        <div class="plates-strip" id="plates-strip" style="display:none;">
+          <div class="ps-label">हाल की प्लेट्स · Recent Plates</div>
+          <div class="ps-list" id="plates-list"></div>
+        </div>
+      </div>
+
+      <div class="fg">
+        <label class="lbl">
+          <span class="le">Driver Mobile</span>
+          <span class="lh">ड्राइवर मोबाइल</span>
+        </label>
+        <div class="row-in">
+          <input class="dk" type="tel" id="f-driver" placeholder="10 अंक का नंबर" maxlength="10" autocomplete="off" inputmode="numeric">
+          <button class="ibtn" id="btn-mic-driver" title="बोलकर भरें">🎙️</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Start Buttons -->
+    <div class="start-btns">
+      <button class="btn-big btn-go" id="btn-start">
+        <span>🚚</span>
+        <span class="bh">डिस्पैच शुरू करें</span>
+        <span class="be">Begin Dispatch</span>
+      </button>
+      <button class="btn-big btn-ret" id="btn-start-ret">
+        <span>🔄</span>
+        <span class="bh">रिटर्न वाउचर</span>
+        <span class="be">Return / Credit Note</span>
+      </button>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════
+     SCAN SCREEN  |  स्कैन स्क्रीन
+══════════════════════════════════ -->
+<div class="screen" id="sc-scan">
+  <div class="topbar">
+    <div class="brand">
+      <span class="b-en">Dispatch Hub</span>
+      <span class="b-hi">डिस्पैच हब</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:.5rem;">
+      <span class="mode-pill dp" id="mode-pill">Dispatch</span>
+      <button class="btn-new2" id="btn-back-setup">← वापस</button>
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <div class="kpi-strip">
+    <div class="kc">
+      <div class="kle">Pipes Scanned</div>
+      <div class="klh">स्कैन की गई पाइप</div>
+      <div class="kv g" id="kv-pipes">0</div>
+    </div>
+    <div class="kc">
+      <div class="kle">Total Weight (kg)</div>
+      <div class="klh">कुल वजन (किलो)</div>
+      <div class="kv" id="kv-wt">0.00</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" data-tab="scan">
+      <span class="te">Scan</span>
+      <span class="th">स्कैन</span>
+    </div>
+    <div class="tab" data-tab="summary">
+      <span class="te">Summary <span class="tc" id="tc-sum">0</span></span>
+      <span class="th">सारांश</span>
+    </div>
+    <div class="tab" data-tab="log">
+      <span class="te">Log <span class="tc bad" id="tc-log">0</span></span>
+      <span class="th">लॉग</span>
+    </div>
+  </div>
+
+  <div class="tab-panels">
+
+    <!-- SCAN TAB -->
+    <div class="tp active" id="tp-scan">
+      <div class="scan-inner">
+        <div class="scan-card">
+          <div class="sch">
+            <div><span class="she">Scanner</span> <span class="shh">/ स्कैनर</span></div>
+            <span class="sdot rdy" id="sdot">● तैयार</span>
+          </div>
+          <input type="text" id="scan-disp" placeholder="यहाँ टैप करें या QR स्कैन करें…" readonly>
+          <div class="sstat-wrap"><div class="sstat idle" id="sstat">स्कैन का इंतज़ार है… <span style="font-family:var(--mono);font-size:.65rem;">(Waiting for scan…)</span></div></div>
+          <div class="scan-btns">
+            <div class="sbtn" id="sbtn-cam" onclick="toggleInlineCam()">
+              <span class="si">📷</span>
+              <span class="sh2">कैमरा</span>
+            </div>
+            <div class="sbtn" onclick="doUndo()">
+              <span class="si">↩</span>
+              <span class="sh2">पूर्ववत</span>
+            </div>
+            <div class="sbtn" onclick="doClear()">
+              <span class="si">🗑</span>
+              <span class="sh2">साफ़</span>
+            </div>
+          </div>
+          <div class="cam-inline" id="cam-inline">
+            <video id="cam-v" autoplay playsinline muted></video>
+            <canvas id="cam-c"></canvas>
+            <div class="vfw"><div class="vfb">
+              <div class="vc tl"></div><div class="vc tr"></div>
+              <div class="vc bl"></div><div class="vc br"></div>
+              <div class="vl"></div>
+            </div></div>
+            <div class="cam-flash" id="cam-flash"></div>
+            <button class="btn-xcam" onclick="stopInlineCam()">✕</button>
+            <!-- Shutter button -->
+            <div class="inline-shutter-row">
+              <div class="inline-shutter" id="inline-shutter" onclick="manualShutter()">
+                <!-- Camera lens SVG icon -->
+                <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="14" cy="14" r="6" fill="#111" opacity=".85"/>
+                  <circle cx="14" cy="14" r="9.5" stroke="#111" stroke-width="2.2" fill="none" opacity=".7"/>
+                  <circle cx="14" cy="14" r="13" stroke="#111" stroke-width="1.2" fill="none" opacity=".2"/>
+                  <circle cx="18" cy="10" r="1.5" fill="#111" opacity=".4"/>
+                </svg>
+              </div>
+              <div class="inline-shutter-label">दबाएं / Tap to scan</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="meta-card">
+          <div class="mct">
+            <span class="mce">Shipment Info</span>
+            <span class="mch">शिपमेंट जानकारी</span>
+          </div>
+          <div class="mgrid">
+            <div class="mi"><div class="mle">Challan</div><div class="mlh">चालान</div><div class="mv" id="mi-ch">—</div></div>
+            <div class="mi"><div class="mle">Vehicle</div><div class="mlh">वाहन</div><div class="mv" id="mi-ve">—</div></div>
+            <div class="mi"><div class="mle">Driver</div><div class="mlh">ड्राइवर</div><div class="mv" id="mi-dr">—</div></div>
+            <div class="mi"><div class="mle">Date</div><div class="mlh">दिनांक</div><div class="mv" id="mi-dt">—</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUMMARY TAB -->
+    <div class="tp" id="tp-summary">
+      <div class="sum-inner">
+        <div class="sum-stats">
+          <div class="ss">
+            <div class="sse">Total Pipes</div><div class="ssh">कुल पाइप</div>
+            <div class="ssv g" id="sum-pipes">0</div>
+          </div>
+          <div class="ss">
+            <div class="sse">Total Weight</div><div class="ssh">कुल वजन</div>
+            <div class="ssv" id="sum-wt">0.00 kg</div>
+          </div>
+        </div>
+        <table class="stbl">
+          <thead><tr>
+            <th>#</th><th>नाम / Size</th><th>रंग</th><th>संख्या</th><th style="text-align:right">वजन</th>
+          </tr></thead>
+          <tbody id="sum-tbody">
+            <tr><td colspan="5"><div class="empty-s"><span class="ei">📦</span><span class="eh">अभी कोई पाइप नहीं</span><span class="ee">No pipes scanned yet</span></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- LOG TAB -->
+    <div class="tp" id="tp-log">
+      <div class="empty-s" id="log-empty"><span class="ei">📜</span><span class="eh">कोई लॉग नहीं</span><span class="ee">No scan events yet</span></div>
+      <ul class="log-list" id="log-list"></ul>
+    </div>
+
+  </div><!-- /tab-panels -->
+
+  <div class="act-bar">
+    <button class="btn-new2" id="btn-new-from-scan">← नया</button>
+    <button class="btn-fin" id="btn-dispatch">
+      <span class="bfh">Finalize & Dispatch</span>
+      <span class="bfe">फ़ाइनल करें</span>
+    </button>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════
+     FULLSCREEN CAMERA MODAL
+══════════════════════════════════ -->
+<div class="fullcam" id="fullcam">
+  <div class="fchead">
+    <div class="fch-title">
+      <span class="fce" id="fc-title-en">Scanning</span>
+      <span class="fch" id="fc-title-hi">स्कैन हो रहा है</span>
+    </div>
+    <button id="btn-close-fc">✕</button>
+  </div>
+  <div class="fcbody">
+    <video id="fc-v" autoplay playsinline muted></video>
+    <canvas id="fc-c" style="display:none"></canvas>
+    <div class="vfw" style="position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center;">
+      <div class="vfb"><div class="vc tl"></div><div class="vc tr"></div><div class="vc bl"></div><div class="vc br"></div><div class="vl"></div></div>
+    </div>
+    <div class="fcflash" id="fc-flash"></div>
+    <div class="fc-hint">
+      <span class="fhh" id="fc-hint-hi">QR कोड की तरफ कैमरा करें</span>
+      <span class="fhe" id="fc-hint-en">Point camera at QR code</span>
+    </div>
+    <div class="shutter-row" id="shutter-row" style="display:none;">
+      <div class="shutter" id="btn-shutter">📸</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════
+     PLATE PREVIEW MODAL
+══════════════════════════════════ -->
+<div class="plate-preview" id="plate-preview">
+  <div class="pp-title">
+    <span class="ppt-hi">नंबर प्लेट की जांच करें</span>
+    <span class="ppt-en">Verify detected plate number</span>
+  </div>
+  <img id="pp-img" src="" alt="plate" class="pp-img">
+  <div class="pp-ocr">
+    <span class="pol">पहचाना गया नंबर (Detected Number) — जरूरत हो तो सुधारें:</span>
+    <div class="ocr-loading" id="ocr-loading">
+      <span class="sp">⟳</span>
+      <span class="ol">पहचान हो रही है… Detecting…</span>
+    </div>
+    <input type="text" id="ocr-result-input" style="display:none;" placeholder="नंबर यहाँ दिखेगा…">
+  </div>
+  <div class="pp-actions">
+    <button class="btn-use" id="btn-use-plate">✓ इस्तेमाल करें <small style="font-size:.7rem;opacity:.7;">Use</small></button>
+    <button class="btn-retake" id="btn-retake">🔁 दोबारा <small style="font-size:.7rem;opacity:.7;">Retake</small></button>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════
+     DETAIL BOTTOM SHEET
+══════════════════════════════════ -->
+<div class="bsbg" id="bsbg">
+  <div class="bssheet">
+    <div class="bshd">
+      <h5 id="bs-title">विवरण / Detail</h5>
+      <button onclick="closeBs()">✕</button>
+    </div>
+    <div class="bsbody" id="bs-body"></div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════
+     CONFIRM SCREEN  |  पुष्टि स्क्रीन
+══════════════════════════════════ -->
+<div class="screen" id="sc-confirm">
+  <div class="topbar">
+    <div class="brand"><span class="b-en">Review</span><span class="b-hi">समीक्षा करें</span></div>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:1.1rem 1.1rem 2rem;">
+    <div class="cfh">
+      <span class="ci" id="cf-icon">📦</span>
+      <div class="chh" id="cf-title">क्या आप भेजने के लिए तैयार हैं?</div>
+    </div>
+    <div class="cf-card">
+      <div class="cfrow"><div><span class="cfle">Mode</span><span class="cflh">मोड</span></div><span class="cfv" id="cf-mode">—</span></div>
+      <div class="cfrow"><div><span class="cfle">Challan</span><span class="cflh">चालान</span></div><span class="cfv" id="cf-ch">—</span></div>
+      <div class="cfrow"><div><span class="cfle">Vehicle</span><span class="cflh">वाहन</span></div><span class="cfv" id="cf-ve">—</span></div>
+      <div class="cfrow"><div><span class="cfle">Driver</span><span class="cflh">ड्राइवर</span></div><span class="cfv" id="cf-dr">—</span></div>
+      <div class="cfrow"><div><span class="cfle">Total Pipes</span><span class="cflh">कुल पाइप</span></div><span class="cfv big" id="cf-pi">0</span></div>
+      <div class="cfrow"><div><span class="cfle">Total Weight</span><span class="cflh">कुल वजन</span></div><span class="cfv" id="cf-wt">—</span></div>
+    </div>
+    <div class="cfacts">
+      <button class="btn-cf go" id="btn-cf-go">
+        <span class="bch">✓ पुष्टि करें और भेजें</span>
+        <span class="bce">Confirm &amp; Dispatch</span>
+      </button>
+      <button class="btn-cf bk" id="btn-cf-back">
+        <span class="bch">← वापस स्कैन करें</span>
+        <span class="bce">Back to Scanning</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════
+     SUCCESS SCREEN  |  सफलता स्क्रीन
+══════════════════════════════════ -->
+<div class="screen" id="sc-success">
+  <div class="sring ok" id="sring">✓</div>
+  <div>
+    <div class="stitle-h ok" id="s-title">भेज दिया गया!</div>
+    <div class="ssub" id="s-sub">—</div>
+  </div>
+  <div class="smeta">
+    <div class="smrow"><span class="sml">मोड / Mode</span><span class="smv" id="s-mode">—</span></div>
+    <div class="smrow"><span class="sml">चालान / Challan</span><span class="smv" id="s-ch">—</span></div>
+    <div class="smrow"><span class="sml">पाइप / Pipes</span><span class="smv" id="s-pi">—</span></div>
+    <div class="smrow"><span class="sml">वजन / Weight</span><span class="smv" id="s-wt">—</span></div>
+    <div class="smrow"><span class="sml">समय / Time</span><span class="smv" id="s-ti">—</span></div>
+  </div>
+  <div class="sbtns">
+    <button class="btn-snew" id="btn-snew">+ नया डिस्पैच / New Dispatch</button>
+    <button class="btn-sret" id="btn-sret">🔄 रिटर्न वाउचर / New Return</button>
+  </div>
+</div>
+
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════
+const S = {
+  challan:'', vehicle:'', driver:'',
+  isReturn: false,
+  items:[], ids:new Set(), totalWt:0,
+  busy:false,
+  inlineStream:null, inlineRAF:null,
+  fcStream:null, fcRAF:null, fcMode:'qr',  // 'qr' | 'plate'
+  plateImg:null   // captured plate dataURL
+};
+
+// ═══════════════════════════════════════════════════════
+//  NAV
+// ═══════════════════════════════════════════════════════
+function goTo(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function vib(p){ try{ navigator.vibrate&&navigator.vibrate(p); }catch(e){} }
+function nowT(){ return new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
+
+// ═══════════════════════════════════════════════════════
+//  PARSE QR
+// ═══════════════════════════════════════════════════════
+function parseRaw(raw){
+  const t=raw.trim();
+  try{ const j=JSON.parse(t); if(j&&j.id) return {isPipe:true,id:parseInt(j.id)}; }catch(e){}
+  const n=parseInt(t,10);
+  if(!isNaN(n)&&String(n)===t) return {isPipe:true,id:n};
+  const m=t.match(/"id"\s*:\s*(\d+)/);
+  if(m) return {isPipe:true,id:parseInt(m[1])};
+  return {isPipe:false,value:t};
+}
+
+// ═══════════════════════════════════════════════════════
+//  SAFE FETCH
+// ═══════════════════════════════════════════════════════
+async function safePost(url,body){
+  const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const ct=res.headers.get('content-type')||'';
+  if(!ct.includes('application/json')) throw new Error(`सर्वर एरर (${res.status}) — Server error, check logs`);
+  const d=await res.json();
+  if(!res.ok||!d.success) throw new Error(d.message||`HTTP ${res.status}`);
+  return d;
+}
+
+// ═══════════════════════════════════════════════════════
+//  CAMERA ENGINE
+// ═══════════════════════════════════════════════════════
+async function startCam(vEl,cEl,onCode,onErr){
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});
+    vEl.srcObject=stream; vEl.setAttribute('playsinline',''); vEl.muted=true;
+    await vEl.play();
+    let lastCode='',lastTime=0;
+    function tick(){
+      if(vEl.readyState<vEl.HAVE_ENOUGH_DATA) return requestAnimationFrame(tick);
+      cEl.width=vEl.videoWidth||640; cEl.height=vEl.videoHeight||480;
+      const ctx=cEl.getContext('2d',{willReadFrequently:true});
+      ctx.drawImage(vEl,0,0,cEl.width,cEl.height);
+      const img=ctx.getImageData(0,0,cEl.width,cEl.height);
+      const code=jsQR(img.data,img.width,img.height,{inversionAttempts:'dontInvert'});
+      if(code&&code.data){ const n=Date.now(); if(code.data!==lastCode||n-lastTime>2500){ lastCode=code.data; lastTime=n; onCode(code.data); } }
+      return requestAnimationFrame(tick);
+    }
+    const rafId=requestAnimationFrame(tick);
+    return {stream,rafId};
+  }catch(e){ onErr(e); return null; }
+}
+function stopCam(stream,rafId){ if(rafId) cancelAnimationFrame(rafId); if(stream) stream.getTracks().forEach(t=>t.stop()); }
+function camErr(e){
+  let m='कैमरा उपलब्ध नहीं है।';
+  if(e&&e.name==='NotAllowedError') m='कैमरा अनुमति नहीं दी गई।\n\niPhone: Settings → Safari → Camera → Allow\nChrome: पता बार में 🔒 टैप करें → Camera Allow करें';
+  else if(e&&e.name==='NotFoundError') m='कोई कैमरा नहीं मिला।';
+  alert(m);
+}
+
+// ═══════════════════════════════════════════════════════
+//  PLATE STORAGE  (localStorage)
+// ═══════════════════════════════════════════════════════
+const PLATE_KEY='dispatch_plates';
+function getPlates(){ try{ return JSON.parse(localStorage.getItem(PLATE_KEY)||'[]'); }catch(e){ return []; } }
+function savePlate(num,img){
+  const arr=getPlates();
+  // remove duplicate numbers
+  const filtered=arr.filter(p=>p.num!==num);
+  filtered.unshift({num,img,ts:Date.now()});
+  // keep last 8
+  localStorage.setItem(PLATE_KEY,JSON.stringify(filtered.slice(0,8)));
+}
+function renderPlates(){
+  const arr=getPlates();
+  const strip=document.getElementById('plates-strip');
+  const list=document.getElementById('plates-list');
+  if(!arr.length){ strip.style.display='none'; return; }
+  strip.style.display='block';
+  list.innerHTML=arr.map(p=>`
+    <div class="ps-thumb" onclick="useSavedPlate('${p.num}')">
+      <img src="${p.img}" alt="${p.num}" loading="lazy">
+      <div class="pn">${p.num}</div>
+    </div>
+  `).join('');
+}
+function useSavedPlate(num){
+  document.getElementById('f-vehicle').value=num.toUpperCase();
+  flashOk('f-vehicle');
+}
+
+// ═══════════════════════════════════════════════════════
+//  FULLSCREEN CAMERA  (challan QR  or  plate photo)
+// ═══════════════════════════════════════════════════════
+async function openFC(mode){
+  S.fcMode=mode;
+  const titleHi=mode==='plate'?'नंबर प्लेट फोटो लें':'QR कोड स्कैन करें';
+  const titleEn=mode==='plate'?'Capture Number Plate':'Scan QR Code';
+  const hintHi=mode==='plate'?'नंबर प्लेट के सामने 📸 दबाएं':'QR कोड की तरफ कैमरा करें';
+  const hintEn=mode==='plate'?'Press 📸 to capture plate':'Point camera at QR code';
+  document.getElementById('fc-title-hi').textContent=titleHi;
+  document.getElementById('fc-title-en').textContent=titleEn;
+  document.getElementById('fc-hint-hi').textContent=hintHi;
+  document.getElementById('fc-hint-en').textContent=hintEn;
+  document.getElementById('shutter-row').style.display=mode==='plate'?'flex':'none';
+  document.getElementById('fullcam').classList.add('open');
+
+  const vEl=document.getElementById('fc-v'), cEl=document.getElementById('fc-c');
+  if(mode==='qr'){
+    const r=await startCam(vEl,cEl,(code)=>{
+      const fl=document.getElementById('fc-flash'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
+      vib([30]);
+      const p=parseRaw(code);
+      const val=p.isPipe?String(p.id):p.value;
+      setTimeout(()=>{ closeFC(); document.getElementById('f-challan').value=val; flashOk('f-challan'); },250);
+    }, (e)=>{ closeFC(); camErr(e); });
+    if(r){ S.fcStream=r.stream; S.fcRAF=r.rafId; }
+  } else {
+    // Plate: just stream, capture on shutter
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});
+      vEl.srcObject=stream; vEl.setAttribute('playsinline',''); vEl.muted=true;
+      await vEl.play();
+      S.fcStream=stream; S.fcRAF=null;
+    }catch(e){ closeFC(); camErr(e); }
+  }
+}
+function closeFC(){
+  document.getElementById('fullcam').classList.remove('open');
+  stopCam(S.fcStream,S.fcRAF); S.fcStream=null; S.fcRAF=null;
+}
+document.getElementById('btn-close-fc').addEventListener('click',closeFC);
+document.getElementById('btn-scan-challan').addEventListener('click',()=>openFC('qr'));
+document.getElementById('btn-plate-cam').addEventListener('click',()=>openFC('plate'));
+
+// Shutter capture
+document.getElementById('btn-shutter').addEventListener('click',()=>{
+  const vEl=document.getElementById('fc-v'), cEl=document.getElementById('fc-c');
+  cEl.style.display='block';
+  cEl.width=vEl.videoWidth||640; cEl.height=vEl.videoHeight||480;
+  const ctx=cEl.getContext('2d');
+  ctx.drawImage(vEl,0,0,cEl.width,cEl.height);
+  const dataURL=cEl.toDataURL('image/jpeg',0.85);
+  cEl.style.display='none';
+  const fl=document.getElementById('fc-flash'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
+  vib([50]);
+  S.plateImg=dataURL;
+  setTimeout(()=>{ closeFC(); showPlatePreview(dataURL); },250);
+});
+
+// ═══════════════════════════════════════════════════════
+//  PLATE PREVIEW + OCR
+//  Strategy: Try Claude Vision backend first (accurate),
+//  fallback to preprocessed Tesseract, fallback to manual.
+// ═══════════════════════════════════════════════════════
+
+// Preprocess image on canvas: grayscale + contrast boost
+function preprocessPlateImage(dataURL){
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.onload=()=>{
+      const MAX=640;
+      let w=img.width, h=img.height;
+      const ratio=Math.min(MAX/w, MAX/h, 1);
+      w=Math.round(w*ratio); h=Math.round(h*ratio);
+      const c=document.createElement('canvas');
+      c.width=w; c.height=h;
+      const ctx=c.getContext('2d');
+      ctx.drawImage(img,0,0,w,h);
+      // Grayscale + contrast
+      const id=ctx.getImageData(0,0,w,h);
+      const d=id.data;
+      for(let i=0;i<d.length;i+=4){
+        const gray=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
+        // Contrast stretch: push toward 0 or 255
+        const c2=Math.min(255,Math.max(0,((gray-128)*1.8)+128));
+        d[i]=d[i+1]=d[i+2]=c2;
+      }
+      ctx.putImageData(id,0,0);
+      resolve(c.toDataURL('image/jpeg',0.9));
+    };
+    img.onerror=()=>resolve(dataURL);
+    img.src=dataURL;
+  });
+}
+
+// Method 1: Backend Claude Vision
+async function ocrViaBackend(dataURL){
+  const res=await fetch('/api/ocr_plate',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({image:dataURL})
+  });
+  if(!res.ok) throw new Error('Backend OCR failed: '+res.status);
+  const ct=res.headers.get('content-type')||'';
+  if(!ct.includes('application/json')) throw new Error('Non-JSON response from /api/ocr_plate');
+  const d=await res.json();
+  if(!d.plate) throw new Error('No plate in response');
+  return d.plate;
+}
+
+// Method 2: Tesseract.js (corrected v4 API)
+async function ocrViaTesseract(dataURL){
+  if(typeof Tesseract==='undefined') throw new Error('Tesseract not loaded');
+  const processed=await preprocessPlateImage(dataURL);
+  // Tesseract v4: createWorker takes only language string
+  const worker=await Tesseract.createWorker('eng');
+  await worker.setParameters({
+    tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
+    tessedit_pageseg_mode: Tesseract.PSM ? Tesseract.PSM.SINGLE_LINE : '7',
+  });
+  const {data:{text}}=await worker.recognize(processed);
+  await worker.terminate();
+  const cleaned=(text||'').replace(/[^A-Z0-9]/gi,'').trim().toUpperCase();
+  if(!cleaned) throw new Error('No text detected');
+  return cleaned;
+}
+
+function setOCRLoading(msg){
+  document.getElementById('ocr-loading').style.display='flex';
+  document.getElementById('ocr-loading').querySelector('.ol').textContent=msg;
+  document.getElementById('ocr-result-input').style.display='none';
+}
+
+function setOCRResult(val){
+  document.getElementById('ocr-loading').style.display='none';
+  const inp=document.getElementById('ocr-result-input');
+  inp.style.display='block';
+  inp.value=val||'';
+  if(!val) inp.placeholder='मैन्युअल टाइप करें / Type manually';
+  inp.focus(); inp.select();
+}
+
+async function showPlatePreview(dataURL){
+  document.getElementById('pp-img').src=dataURL;
+  setOCRLoading('पहचान हो रही है… Detecting…');
+  document.getElementById('plate-preview').classList.add('open');
+
+  // Try backend first
+  try{
+    setOCRLoading('Claude Vision से पहचान… Detecting via AI…');
+    const plate=await ocrViaBackend(dataURL);
+    setOCRResult(plate);
+    return;
+  }catch(e){
+    console.log('Backend OCR failed, trying Tesseract:', e.message);
+  }
+
+  // Fallback: Tesseract
+  try{
+    setOCRLoading('Tesseract से पहचान… Detecting…');
+    const plate=await ocrViaTesseract(dataURL);
+    setOCRResult(plate);
+    return;
+  }catch(e){
+    console.log('Tesseract OCR failed:', e.message);
+  }
+
+  // Final fallback: manual entry
+  setOCRResult('');
+}
+
+document.getElementById('btn-use-plate').addEventListener('click',()=>{
+  const num=document.getElementById('ocr-result-input').value.trim().toUpperCase();
+  if(!num){ alert('नंबर खाली है / Number is empty'); return; }
+  document.getElementById('f-vehicle').value=num;
+  flashOk('f-vehicle');
+  if(S.plateImg) savePlate(num,S.plateImg);
+  document.getElementById('plate-preview').classList.remove('open');
+  S.plateImg=null;
+  renderPlates();
+});
+document.getElementById('btn-retake').addEventListener('click',()=>{
+  document.getElementById('plate-preview').classList.remove('open');
+  S.plateImg=null;
+  setTimeout(()=>openFC('plate'),200);
+});
+
+// ═══════════════════════════════════════════════════════
+//  VOICE INPUT  (Web Speech API)
+// ═══════════════════════════════════════════════════════
+function startVoice(targetInputId, btnId){
+  const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SpeechRecognition){
+    alert('आपके ब्राउज़र में वॉयस टाइपिंग सपोर्ट नहीं है।\nVoice typing not supported in this browser.\n\nChrome / Edge पर काम करता है।');
+    return;
+  }
+  const btn=document.getElementById(btnId);
+  const inp=document.getElementById(targetInputId);
+  const rec=new SpeechRecognition();
+  rec.lang='hi-IN';  // Hindi-India, fallback to en-IN
+  rec.interimResults=false;
+  rec.maxAlternatives=1;
+  btn.classList.add('on','pulse');
+  vib([50]);
+  rec.onresult=(e)=>{
+    let t=(e.results[0][0].transcript||'').trim();
+    // For vehicle: strip spaces, uppercase
+    if(targetInputId==='f-vehicle') t=t.replace(/\s+/g,'').toUpperCase();
+    // For driver: keep only digits
+    if(targetInputId==='f-driver') t=t.replace(/\D/g,'').substring(0,10);
+    inp.value=t;
+    flashOk(targetInputId);
+    vib([30]);
+  };
+  rec.onerror=(e)=>{ btn.classList.remove('on','pulse'); if(e.error==='not-allowed') alert('माइक्रोफ़ोन की अनुमति दें / Allow microphone access'); };
+  rec.onend=()=>{ btn.classList.remove('on','pulse'); };
+  try{ rec.start(); }catch(e){ btn.classList.remove('on','pulse'); }
+}
+
+document.getElementById('btn-mic-vehicle').addEventListener('click',()=>startVoice('f-vehicle','btn-mic-vehicle'));
+document.getElementById('btn-mic-driver').addEventListener('click',()=>startVoice('f-driver','btn-mic-driver'));
+
+// ═══════════════════════════════════════════════════════
+//  SETUP → SCAN
+// ═══════════════════════════════════════════════════════
+function flashOk(id){ const e=document.getElementById(id); e.classList.add('hi'); setTimeout(()=>e.classList.remove('hi'),1600); }
+
+function initSession(isReturn){
+  const c=document.getElementById('f-challan').value.trim();
+  if(!c){
+    const el=document.getElementById('f-challan');
+    el.classList.add('err'); el.focus(); setTimeout(()=>el.classList.remove('err'),1400);
+    return;
+  }
+  S.challan=c; S.vehicle=document.getElementById('f-vehicle').value.trim().toUpperCase(); S.driver=document.getElementById('f-driver').value.trim();
+  S.isReturn=isReturn; S.items=[]; S.ids=new Set(); S.totalWt=0; S.busy=false;
+  LOG.length=0;
+  document.getElementById('log-list').innerHTML='';
+  document.getElementById('log-empty').style.display='block';
+  document.getElementById('tc-log').textContent='0'; document.getElementById('tc-log').classList.remove('bad');
+  document.getElementById('tc-sum').textContent='0';
+
+  const pill=document.getElementById('mode-pill');
+  pill.textContent=isReturn?'Return वाउचर':'Dispatch';
+  pill.className='mode-pill '+(isReturn?'rt':'dp');
+
+  const finBtn=document.getElementById('btn-dispatch');
+  finBtn.className='btn-fin'+(isReturn?' ret':'');
+  finBtn.innerHTML=isReturn
+    ?'<span class="bfh">Confirm Return</span><span class="bfe">रिटर्न पुष्टि करें</span>'
+    :'<span class="bfh">Finalize &amp; Dispatch</span><span class="bfe">फ़ाइनल करें</span>';
+
+  document.getElementById('mi-ch').textContent=S.challan;
+  document.getElementById('mi-ve').textContent=S.vehicle||'N/A';
+  document.getElementById('mi-dr').textContent=S.driver||'N/A';
+  document.getElementById('mi-dt').textContent=new Date().toLocaleDateString('en-IN');
+  document.getElementById('kv-pipes').className='kv '+(isReturn?'r':'g');
+
+  updateAll(); switchTab('scan');
+  goTo('sc-scan'); focusUSB();
+}
+
+document.getElementById('btn-start').addEventListener('click',()=>initSession(false));
+document.getElementById('btn-start-ret').addEventListener('click',()=>initSession(true));
+document.getElementById('btn-back-setup').addEventListener('click',()=>{ stopInlineCam(); goTo('sc-setup'); });
+document.getElementById('btn-new-from-scan').addEventListener('click',()=>{ stopInlineCam(); goTo('sc-setup'); resetSetup(); });
+
+function resetSetup(){
+  document.getElementById('f-challan').value='';
+  renderPlates();
+  setTimeout(()=>document.getElementById('f-challan').focus(),150);
+}
+
+// ═══════════════════════════════════════════════════════
+//  INLINE CAMERA
+// ═══════════════════════════════════════════════════════
+async function toggleInlineCam(){ S.inlineStream?stopInlineCam():startInlineCam(); }
+async function startInlineCam(){
+  const panel=document.getElementById('cam-inline'), btn=document.getElementById('sbtn-cam');
+  panel.classList.add('on'); btn.classList.add('on');
+  document.getElementById('sdot').textContent='● कैमरा'; document.getElementById('sdot').className='sdot cam';
+  const r=await startCam(document.getElementById('cam-v'),document.getElementById('cam-c'),(code)=>{
+    // Auto-detected: flash + ping the shutter ring as visual feedback
+    const fl=document.getElementById('cam-flash'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
+    const sh=document.getElementById('inline-shutter'); sh.classList.remove('ping'); void sh.offsetWidth; sh.classList.add('ping');
+    vib([30]);
+    processScan(code);
+  },(e)=>{ stopInlineCam(); camErr(e); });
+  if(r){ S.inlineStream=r.stream; S.inlineRAF=r.rafId; }
+  else stopInlineCam();
+}
+
+// Manual shutter: freeze current frame and force a jsQR scan immediately
+// (bypasses the 2.5s debounce — useful when QR is hard to auto-detect)
+function manualShutter(){
+  if(!S.inlineStream) return;
+  vib([25]);
+  const vEl=document.getElementById('cam-v');
+  const cEl=document.getElementById('cam-c');
+  if(vEl.readyState < vEl.HAVE_ENOUGH_DATA) return;
+  cEl.width=vEl.videoWidth||640; cEl.height=vEl.videoHeight||480;
+  const ctx=cEl.getContext('2d',{willReadFrequently:true});
+  ctx.drawImage(vEl,0,0,cEl.width,cEl.height);
+  const img=ctx.getImageData(0,0,cEl.width,cEl.height);
+  const code=jsQR(img.data,img.width,img.height,{inversionAttempts:'attemptBoth'});
+
+  const sh=document.getElementById('inline-shutter');
+  sh.classList.remove('ping'); void sh.offsetWidth; sh.classList.add('ping');
+
+  if(code&&code.data){
+    const fl=document.getElementById('cam-flash'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
+    processScan(code.data);
+  } else {
+    // Nothing found — show a brief red flash on status
+    setStat('QR नहीं मिला — थोड़ा पास लाएं / No QR found, move closer','warn');
+    vib([80]);
+  }
+}
+function stopInlineCam(){
+  stopCam(S.inlineStream,S.inlineRAF); S.inlineStream=null; S.inlineRAF=null;
+  document.getElementById('cam-inline').classList.remove('on');
+  document.getElementById('sbtn-cam').classList.remove('on');
+  document.getElementById('sdot').textContent='● तैयार'; document.getElementById('sdot').className='sdot rdy';
+  focusUSB();
+}
+
+// ═══════════════════════════════════════════════════════
+//  USB INPUT
+// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
+//  USB / BLUETOOTH HID INPUT (No Input Field Needed)
+// ═══════════════════════════════════════════════════════
+let usbBuf='', usbTimer=null;
+
+function focusUSB(){
+  if(S.inlineStream) return;
+  
+  // Force Gboard to hide by removing focus from any active inputs
+  if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+    document.activeElement.blur(); 
+  }
+  
+  document.getElementById('scan-disp').placeholder='● स्कैनर तैयार है — स्कैन करें';
+}
+
+document.getElementById('scan-disp').addEventListener('click', focusUSB);
+
+// Listen to the whole document for scanner keystrokes
+document.addEventListener('keydown', e => {
+  // 1. Only capture scans if the user is on the Scan screen
+  if (!document.getElementById('sc-scan').classList.contains('active')) return;
+  
+  // 2. Ignore if the user is manually typing in a real text box (like Challan/Vehicle)
+  if (e.target.tagName === 'INPUT' && e.target.id !== 'scan-disp') return;
+
+  // 3. Catch the 'Enter' key that the scanner sends at the end of a barcode
+  if (e.key === 'Enter') {
+    e.preventDefault(); // Stop the page from scrolling or jumping
+    const d = usbBuf.trim(); 
+    usbBuf = ''; 
+    clearTimeout(usbTimer); 
+    if (d) processScan(d); 
+  }
+  // 4. Catch the letters and numbers
+  else if (e.key.length === 1) {
+    usbBuf += e.key; 
+    clearTimeout(usbTimer); 
+    
+    // Process the buffer if the scanner stops typing for 150ms
+    usbTimer = setTimeout(() => { 
+      if (usbBuf) {
+        processScan(usbBuf.trim());
+        usbBuf = '';
+      } 
+    }, 150); 
+  }
+});
+
+// Backup: Catch paste events if the scanner is configured to paste data instead of typing it
+document.addEventListener('paste', e => {
+  if (!document.getElementById('sc-scan').classList.contains('active')) return;
+  const t = (e.clipboardData || window.clipboardData).getData('text').trim();
+  if (t) processScan(t);
+});
+
+// Automatically hide keyboard when switching to the scan tab
+document.addEventListener('visibilitychange',()=>{ 
+  if(!document.hidden && document.getElementById('sc-scan').classList.contains('active') && !S.inlineStream) {
+    setTimeout(focusUSB, 300); 
+  }
+});
+// ═══════════════════════════════════════════════════════
+//  CORE SCAN PROCESSOR
+// ═══════════════════════════════════════════════════════
+async function processScan(raw){
+  if(S.busy) return; S.busy=true;
+  const p=parseRaw(raw);
+  if(!p.isPipe||!p.id){
+    setStat('❌ गलत QR / बारकोड फॉर्मेट — Invalid format','err');
+    addLog('err','गलत स्कैन (Invalid scan)','Raw: '+raw.substring(0,30));
+    vib([100,50,100]); S.busy=false; return;
+  }
+  const id=p.id;
+  if(S.ids.has(id)){
+    setStat(`⚠️ पहले से स्कैन हुआ — ID #${id} already in list`,'warn');
+    addLog('dup',`डुप्लीकेट — ID #${id}`,'पहले से लिस्ट में है / Already in list');
+    vib([200,80,200]); S.busy=false; return;
+  }
+  try{
+    const res=await fetch(`/api/labels/${id}`);
+    if(!res.ok) throw new Error(`पाइप ID ${id} डेटाबेस में नहीं मिली / Pipe not found`);
+    const item=await res.json();
+    if(S.isReturn){
+      if(!item.dispatched_at){ setStat(`⚠️ ID #${id} स्टॉक में है, वापस नहीं हो सकती — Already in stock`,'warn'); addLog('warn',`ID #${id} स्टॉक में है`,'पहले से गोदाम में / Not dispatched'); vib([200,80,200]); S.busy=false; return; }
+    } else {
+      if(item.dispatched_at){ setStat(`⚠️ ID #${id} पहले ही भेजी जा चुकी है — Already dispatched`,'warn'); addLog('warn',`ID #${id} पहले ही भेजी गई`,'Already dispatched'); vib([200,80,200]); S.busy=false; return; }
+    }
+    S.items.push(item); S.ids.add(item.id); S.totalWt+=parseFloat(item.weight_g||0);
+    const lbl=`${item.pipe_name} ${item.size}`;
+    setStat(`✓ जोड़ा: ${lbl} (${parseFloat(item.weight_g||0).toFixed(2)} kg) — Added`,'ok');
+    addLog('ok',`ID #${item.id} — ${lbl}`,`${item.color} · ${item.batch||''} · ${parseFloat(item.weight_g||0).toFixed(2)} kg`);
+    updateAll(); vib([40]);
+  }catch(e){
+    setStat('❌ '+e.message,'err');
+    addLog('err','फेच एरर — ID #'+id,e.message);
+    vib([100,50,100]);
+  }
+  S.busy=false;
+}
+
+// ═══════════════════════════════════════════════════════
+//  STATUS
+// ═══════════════════════════════════════════════════════
+let _stTimer=null;
+function setStat(msg,type){
+  const el=document.getElementById('sstat');
+  el.textContent=msg; el.className='sstat '+(type||'idle');
+  clearTimeout(_stTimer);
+  if(type==='ok'||type==='info') _stTimer=setTimeout(()=>{ el.textContent='स्कैन का इंतज़ार है… (Waiting for scan…)'; el.className='sstat idle'; },3500);
+}
+
+// ═══════════════════════════════════════════════════════
+//  UPDATE ALL
+// ═══════════════════════════════════════════════════════
+function updateAll(){
+  document.getElementById('kv-pipes').textContent=S.items.length;
+  document.getElementById('kv-wt').textContent=S.totalWt.toFixed(2);
+  document.getElementById('sum-pipes').textContent=S.items.length;
+  document.getElementById('sum-wt').textContent=S.totalWt.toFixed(2)+' kg';
+  document.getElementById('tc-sum').textContent=S.items.length;
+  renderSummary();
+}
+function renderSummary(){
+  const tbody=document.getElementById('sum-tbody');
+  if(!S.items.length){ tbody.innerHTML='<tr><td colspan="5"><div class="empty-s"><span class="ei">📦</span><span class="eh">अभी कोई पाइप नहीं</span><span class="ee">No pipes scanned yet</span></div></td></tr>'; return; }
+  const grps={};
+  S.items.forEach(it=>{ const k=`${it.pipe_name}||${it.size}||${it.color}`; if(!grps[k]) grps[k]={name:it.pipe_name,size:it.size,color:it.color,qty:0,wt:0,items:[]}; grps[k].qty++; grps[k].wt+=parseFloat(it.weight_g||0); grps[k].items.push(it); });
+  const cm={blue:'#2563eb',grey:'#94a3b8',gray:'#94a3b8',white:'#e2e8f0',black:'#334155',red:'#dc2626',green:'#059669'};
+  let i=1,h='';
+  for(const k in grps){ const g=grps[k]; const dc=cm[g.color.toLowerCase()]||'#64748b'; h+=`<tr onclick="openBs('${encodeURIComponent(k)}')"><td>${i++}</td><td><strong>${g.name}</strong><br><small style="color:var(--dim)">${g.size}</small></td><td><span class="cdot" style="background:${dc}"></span>${g.color}</td><td><strong>${g.qty}</strong></td><td style="text-align:right">${g.wt.toFixed(2)}</td></tr>`; }
+  tbody.innerHTML=h;
+  window._grps=grps;
+}
+
+// ═══════════════════════════════════════════════════════
+//  LOG
+// ═══════════════════════════════════════════════════════
+const LOG=[];
+const LM={ok:{dot:'ok',badge:'ok'},dup:{dot:'warn',badge:'dup'},warn:{dot:'warn',badge:'dup'},err:{dot:'err',badge:'err'},info:{dot:'info',badge:'ok'}};
+function addLog(type,text,sub){
+  LOG.unshift({type,text,sub:sub||'',t:nowT()});
+  document.getElementById('log-empty').style.display='none';
+  const li=document.createElement('li'); li.className='li2';
+  const lm=LM[type]||LM.info;
+  li.innerHTML=`<div class="ldot ${lm.dot}" style="flex-shrink:0;margin-top:.28rem;"></div><div class="lm"><div class="lt">${text}<span class="lbadge ${lm.badge}">${type.toUpperCase()}</span></div>${sub?`<div class="ls">${sub}</div>`:''}</div><div class="ltime">${LOG[0].t}</div>`;
+  const list=document.getElementById('log-list');
+  list.insertBefore(li,list.firstChild);
+  while(list.children.length>100) list.removeChild(list.lastChild);
+  const bad=LOG.filter(l=>l.type==='err'||l.type==='dup'||l.type==='warn').length;
+  const tc=document.getElementById('tc-log');
+  tc.textContent=LOG.length;
+  bad>0?tc.classList.add('bad'):tc.classList.remove('bad');
+}
+
+// ═══════════════════════════════════════════════════════
+//  BOTTOM SHEET  (group detail)
+// ═══════════════════════════════════════════════════════
+function openBs(ek){
+  const k=decodeURIComponent(ek); const g=window._grps?.[k]; if(!g) return;
+  document.getElementById('bs-title').textContent=`${g.name} ${g.size} (${g.color}) — ${g.qty} पाइप`;
+  document.getElementById('bs-body').innerHTML=g.items.map(it=>`
+    <div class="bsrow">
+      <div><div class="bsid">ID #${it.id}</div><div class="bswt">${parseFloat(it.weight_g||0).toFixed(3)} kg</div></div>
+      <button class="bsrm" onclick="rmPipe(${it.id})">✕ हटाएं</button>
+    </div>`).join('');
+  document.getElementById('bsbg').classList.add('open');
+}
+function closeBs(){ document.getElementById('bsbg').classList.remove('open'); }
+document.getElementById('bsbg').addEventListener('click',function(e){ if(e.target===this) closeBs(); });
+function rmPipe(id){
+  const idx=S.items.findIndex(i=>i.id===id); if(idx===-1) return;
+  const it=S.items[idx];
+  S.items.splice(idx,1); S.ids.delete(id); S.totalWt=Math.max(0,S.totalWt-parseFloat(it.weight_g||0));
+  addLog('info',`हटाया — ID #${id}`,`${it.pipe_name} ${it.size}`);
+  updateAll(); closeBs(); setStat(`ID #${id} हटा दिया / Removed`,'info');
+}
+
+// ═══════════════════════════════════════════════════════
+//  TABS
+// ═══════════════════════════════════════════════════════
+function switchTab(n){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===n));
+  document.querySelectorAll('.tp').forEach(p=>p.classList.toggle('active',p.id===`tp-${n}`));
+  if(n==='scan') setTimeout(focusUSB,100);
+}
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>switchTab(t.dataset.tab)));
+
+// ═══════════════════════════════════════════════════════
+//  UNDO / CLEAR
+// ═══════════════════════════════════════════════════════
+function doUndo(){
+  if(!S.items.length){ setStat('पूर्ववत करने के लिए कुछ नहीं / Nothing to undo','info'); return; }
+  const last=S.items.pop(); S.ids.delete(last.id); S.totalWt=Math.max(0,S.totalWt-parseFloat(last.weight_g||0));
+  addLog('info',`पूर्ववत — ID #${last.id}`,`${last.pipe_name} ${last.size}`);
+  updateAll(); setStat(`पूर्ववत: ID #${last.id} / Undone`,'info'); vib([30]);
+  if(!S.inlineStream) focusUSB();
+}
+function doClear(){
+  if(!S.items.length) return;
+  if(!confirm(`सभी ${S.items.length} स्कैन हटाएं?\nRemove all ${S.items.length} scanned pipes?`)) return;
+  S.items=[]; S.ids.clear(); S.totalWt=0;
+  addLog('info','सब साफ़ / Cleared all','');
+  updateAll(); setStat('सब साफ़ / All cleared','info');
+  if(!S.inlineStream) focusUSB();
+}
+
+// ═══════════════════════════════════════════════════════
+//  CONFIRM SCREEN
+// ═══════════════════════════════════════════════════════
+function showConfirm(){
+  if(!S.items.length){ setStat('पहले पाइप स्कैन करें / Scan pipes first','warn'); switchTab('scan'); return; }
+  stopInlineCam();
+  document.getElementById('cf-icon').textContent=S.isReturn?'🔄':'📦';
+  document.getElementById('cf-title').textContent=S.isReturn?'रिटर्न की पुष्टि करें?':'क्या आप भेजने के लिए तैयार हैं?';
+  document.getElementById('cf-mode').textContent=S.isReturn?'🔄 रिटर्न वाउचर':'🚚 Dispatch';
+  document.getElementById('cf-ch').textContent=S.challan;
+  document.getElementById('cf-ve').textContent=S.vehicle||'N/A';
+  document.getElementById('cf-dr').textContent=S.driver||'N/A';
+  const piEl=document.getElementById('cf-pi');
+  piEl.textContent=S.items.length; piEl.className='cfv '+(S.isReturn?'bigr':'big');
+  document.getElementById('cf-wt').textContent=S.totalWt.toFixed(2)+' kg';
+  const btn=document.getElementById('btn-cf-go');
+  btn.className='btn-cf '+(S.isReturn?'goret':'go');
+  btn.innerHTML=S.isReturn
+    ?'<span class="bch">⚠️ रिटर्न कन्फ़र्म करें</span><span class="bce">Confirm Return &amp; Restock</span>'
+    :'<span class="bch">✓ पुष्टि करें और भेजें</span><span class="bce">Confirm &amp; Dispatch</span>';
+  goTo('sc-confirm');
+}
+
+document.getElementById('btn-dispatch').addEventListener('click',showConfirm);
+document.getElementById('btn-cf-back').addEventListener('click',()=>{ goTo('sc-scan'); focusUSB(); });
+
+// ═══════════════════════════════════════════════════════
+//  SUBMIT
+// ═══════════════════════════════════════════════════════
+document.getElementById('btn-cf-go').addEventListener('click',async()=>{
+  const btn=document.getElementById('btn-cf-go');
+  btn.disabled=true;
+  btn.innerHTML='<span class="bch">भेजा जा रहा है… Sending…</span>';
+  try{
+    let d;
+    if(S.isReturn){
+      d=await safePost('/api/returns/create',{items:S.items});
+    } else {
+      console.log('🚚 submitting shipment', S.challan);
+      d=await safePost('/api/shipments/create',{meta:{challan_number:S.challan,challan_no:S.challan,vehicle:S.vehicle,driver_mobile:S.driver,customer:'',address:'',customer_mobile:''},items:S.items});
+    }
+    const isRet=S.isReturn;
+    document.getElementById('sring').className='sring '+(isRet?'ret':'ok');
+    document.getElementById('sring').textContent=isRet?'🔄':'✓';
+    document.getElementById('s-title').textContent=isRet?'रिटर्न सेव हो गया!':'भेज दिया गया!';
+    document.getElementById('s-title').className='stitle-h '+(isRet?'ret':'ok');
+    document.getElementById('s-mode').textContent=isRet?'रिटर्न वाउचर':'Dispatch';
+    document.getElementById('s-ch').textContent=S.challan;
+    document.getElementById('s-pi').textContent=S.items.length+' पाइप';
+    document.getElementById('s-wt').textContent=S.totalWt.toFixed(2)+' kg';
+    document.getElementById('s-ti').textContent=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('s-sub').textContent=d.message||'सफल / Success';
+    vib([50,50,200]);
+    goTo('sc-success');
+  }catch(e){
+    btn.disabled=false;
+    btn.innerHTML=S.isReturn?'<span class="bch">⚠️ रिटर्न कन्फ़र्म करें</span><span class="bce">Confirm Return</span>':'<span class="bch">✓ पुष्टि करें और भेजें</span><span class="bce">Confirm &amp; Dispatch</span>';
+    alert('❌ '+e.message);
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+//  SUCCESS → RESET
+// ═══════════════════════════════════════════════════════
+document.getElementById('btn-snew').addEventListener('click',()=>{ fullReset(); goTo('sc-setup'); });
+document.getElementById('btn-sret').addEventListener('click',()=>{ fullReset(); goTo('sc-setup'); setTimeout(()=>document.getElementById('btn-start-ret').focus(),200); });
+
+function fullReset(){
+  stopInlineCam(); closeFC();
+  Object.assign(S,{challan:'',vehicle:'',driver:'',isReturn:false,items:[],ids:new Set(),totalWt:0,busy:false,plateImg:null});
+  LOG.length=0;
+  document.getElementById('log-list').innerHTML='';
+  document.getElementById('log-empty').style.display='block';
+  document.getElementById('tc-log').textContent='0'; document.getElementById('tc-log').classList.remove('bad');
+  document.getElementById('tc-sum').textContent='0';
+  document.getElementById('f-challan').value='';
+  document.getElementById('f-vehicle').value='';
+  document.getElementById('f-driver').value='';
+  updateAll();
+  renderPlates();
+}
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+renderPlates();
+setTimeout(()=>document.getElementById('f-challan').focus(),200);
+</script>
+</body>
+</html>
