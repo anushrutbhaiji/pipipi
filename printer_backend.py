@@ -44,7 +44,7 @@ def silent_print_label(label_data, printer_name="ZPL"):
                 font_sub = ImageFont.truetype(font_norm, 24)    
 
                 # 4. BOTTOM ID (Niche wala ID number) - Abhi 28 hai
-                font_id = ImageFont.truetype(font_bold, 28)     
+                font_id = ImageFont.truetype(font_bold, 48)     
 
                 # 5. MANUFACTURER (Bhaiji Products) - Abhi 28 hai
                 font_mfg = ImageFont.truetype(font_bold, 28) 
@@ -53,7 +53,7 @@ def silent_print_label(label_data, printer_name="ZPL"):
                 font_header = ImageFont.truetype("arialbd.ttf", 38) # Brand
                 font_main = ImageFont.truetype("arial.ttf", 28)     # Details
                 font_sub = ImageFont.truetype("arial.ttf", 22)      # Info
-                font_id = ImageFont.truetype("arialbd.ttf", 26)     # ID
+                font_id = ImageFont.truetype("arialbd.ttf", 34)     # ID
                 font_mfg = ImageFont.truetype("arialbd.ttf", 25)    # Mfg Name
         except:
             # Agar koi font na mile to Default use karega
@@ -93,7 +93,7 @@ def silent_print_label(label_data, printer_name="ZPL"):
         # --- G. QR CODE ---
         qr = qrcode.make(json.dumps({"id": label_data['id']}))
         # Size Yahan Change karein: (170, 170)
-        qr = qr.resize((170, 170))
+        qr = qr.resize((200, 200))
         # Position: X=620 (Right Side), Y=20 (Top)
         img.paste(qr, (620, 20)) 
 

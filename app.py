@@ -158,11 +158,10 @@ def index(): return render_template('admin.html')
 @app.route('/generate')
 def generate():
     real_ip = get_real_ip()
-    print("REAL IP:", real_ip)
-
+    
+    # Existing IP check
     if real_ip not in ('127.0.0.1', '::1'):
         return "Forbidden", 403
-
     return render_template('generate.html')
 
 @app.route('/scan')
@@ -180,6 +179,10 @@ def dispatch_hub():
 
 @app.route('/mobile')
 def mobile(): return render_template('dispatch_mobile.html')
+
+@app.route('/dispatch-esp')
+def dispatch_esp():
+    return render_template('dispatch_esp.html')
 
 @app.route('/admin')
 def admin(): return render_template('admin.html')
@@ -498,7 +501,51 @@ def reject_inventory():
         return jsonify({'success': True, 'message': f'Marked {len(ids)} records as rejected'})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
-        
+
+
+# --- ADD GLOBAL QUEUE ---
+from collections import deque
+ESP_QUEUE = deque()
+
+# --- ESP PUSH API ---
+@app.route('/api/esp/push', methods=['POST'])
+def esp_push():
+    try:
+        data = request.get_json()
+        print("📥 RAW DATA:", data)
+
+        pipe_id = None
+
+        # Case 1: {"id": 3491}
+        if isinstance(data.get("id"), int):
+            pipe_id = data["id"]
+
+        # Case 2: {"id": {"id": 3491}}
+        elif isinstance(data.get("id"), dict):
+            pipe_id = data["id"].get("id")
+
+        if not pipe_id:
+            return jsonify({"error": "Invalid ID format"}), 400
+
+        ESP_QUEUE.append(pipe_id)
+
+        print(f"✅ Parsed ID: {pipe_id}")
+        return jsonify({"success": True})
+
+    except Exception as e:
+        print("❌ ESP PUSH ERROR:", str(e))
+        return jsonify({"error": str(e)}), 500
+
+# --- UI FETCH API ---
+@app.route('/api/esp/fetch', methods=['GET'])
+def esp_fetch():
+    items = []
+
+    while ESP_QUEUE:
+        items.append(ESP_QUEUE.popleft())
+
+    return jsonify(items)
+
 if __name__ == '__main__':
     if not os.path.exists('templates'): os.makedirs('templates')
     print("System Running on http://localhost:5000")

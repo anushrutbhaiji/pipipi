@@ -188,7 +188,7 @@
     
     document.addEventListener("DOMContentLoaded", () => {
         const today = new Date().toISOString().split('T')[0];
-        document.getElementById('f_start').value = today;
+        document.getElementById('f_start').value = '';
         document.getElementById('rep_date').value = today;
 
         if(sessionStorage.getItem('admin_token')) {
@@ -573,6 +573,7 @@
             size: sizeVal,
             color: document.getElementById('f_color').value,
             pressure: document.getElementById('f_pressure').value,
+            weight: document.getElementById('f_weight') ? document.getElementById('f_weight').value : '',
             status: document.getElementById('f_status').value,
             date: document.getElementById('f_start').value,
             page: currentPage,    // NEW: Send current page
@@ -693,6 +694,7 @@
         fetchInventory(currentPage + direction);
     }
     // 2. RENDER SUMMARY (With Color Totals Row)
+    // 2. RENDER SUMMARY 
     function renderSummaryTable(data, mode) {
         document.getElementById('inv-summary-view').style.display = 'block';
         document.getElementById('inv-detail-view').style.display = 'none';
@@ -716,40 +718,42 @@
         if(titleEl) titleEl.innerText = displayTitle;
 
         if(data.length === 0) { 
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No records found.</td></tr>'; 
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No records found.</td></tr>'; 
             return; 
         }
 
         let groups = {};
-        let totalColSpan = 3; 
+        let totalColSpan = 5; 
 
         // --- B. DYNAMIC HEADERS & GROUPING ---
         if (mode === 'size_centric') {
-            thead.innerHTML = `<tr><th>Size</th><th>Color</th><th style="text-align:center;">Quantity</th><th style="text-align:right;">Total Wt (kg)</th><th>Action</th></tr>`;
-            totalColSpan = 2; 
+            thead.innerHTML = `<tr><th>Size</th><th>Color</th><th>Pressure</th><th style="text-align:right;">Std Wt (kg)</th><th style="text-align:center;">Quantity</th><th>Action</th></tr>`;
+            totalColSpan = 4; 
         } else if (mode === 'brand_centric') {
-            thead.innerHTML = `<tr><th>Brand</th><th>Color</th><th style="text-align:center;">Quantity</th><th style="text-align:right;">Total Wt (kg)</th><th>Action</th></tr>`;
-            totalColSpan = 2; 
+            thead.innerHTML = `<tr><th>Brand</th><th>Color</th><th>Pressure</th><th style="text-align:right;">Std Wt (kg)</th><th style="text-align:center;">Quantity</th><th>Action</th></tr>`;
+            totalColSpan = 4; 
         } else {
-            thead.innerHTML = `<tr><th>Brand</th><th>Size</th><th>Color</th><th style="text-align:center;">Quantity</th><th style="text-align:right;">Total Wt (kg)</th><th>Action</th></tr>`;
-            totalColSpan = 3; 
+            thead.innerHTML = `<tr><th>Brand</th><th>Size</th><th>Color</th><th>Pressure</th><th style="text-align:right;">Std Wt (kg)</th><th style="text-align:center;">Quantity</th><th>Action</th></tr>`;
+            totalColSpan = 5; 
         }
 
         data.forEach(item => {
+            let pressure = item.pressure_class || '-';
+            let std_wt = item.weight_g || item.avg_weight || (item.total_weight && item.count ? (item.total_weight / item.count) : 0);
+
             let key = '';
-            if(mode === 'size_centric') key = `${item.size}|${item.color}`;
-            else if(mode === 'brand_centric') key = `${item.pipe_name}|${item.color}`;
-            else key = `${item.pipe_name}|${item.size}|${item.color}`;
+            if(mode === 'size_centric') key = `${item.size}|${item.color}|${pressure}|${std_wt}`;
+            else if(mode === 'brand_centric') key = `${item.pipe_name}|${item.color}|${pressure}|${std_wt}`;
+            else key = `${item.pipe_name}|${item.size}|${item.color}|${pressure}|${std_wt}`;
 
             if(!groups[key]) {
                 groups[key] = { 
                     brand: item.pipe_name, size: item.size, color: item.color, 
+                    pressure: pressure, std_weight: std_wt,
                     count: 0, weight: 0 
                 };
             }
             
-            // THE FIX: Check if the server already counted it. If yes, use the server's count. 
-            // If no (raw data), count it as 1.
             groups[key].count += (item.count !== undefined ? item.count : 1);
             groups[key].weight += (item.total_weight !== undefined ? item.total_weight : (item.weight_g || 0));
         });
@@ -757,46 +761,55 @@
         // --- C. RENDER ROWS & CALCULATE TOTALS ---
         let grandTotalQty = 0;
         let grandTotalWt = 0;
-        let colorTotals = {}; // Store totals per color
+        let colorTotals = {}; 
 
         Object.values(groups).forEach(g => {
-            let totalKg = (g.weight).toFixed(3);
             grandTotalQty += g.count;
             grandTotalWt += g.weight;
 
-            // Aggregate Color Totals
             if (!colorTotals[g.color]) {
                 colorTotals[g.color] = { count: 0, weight: 0 };
             }
             colorTotals[g.color].count += g.count;
             colorTotals[g.color].weight += g.weight;
 
+            let pressureDisplay = g.pressure !== '-' ? `<span style="color:#ef4444; font-weight:600;">${g.pressure}</span>` : '<span style="color:#cbd5e1;">-</span>';
+            let stdWtDisplay = g.std_weight ? parseFloat(g.std_weight).toFixed(3) : '<span style="color:#cbd5e1;">-</span>';
+            
+            let safePressure = g.pressure === '-' ? '' : g.pressure;
+            let safeWeight = g.std_weight || '';
+
+            // THE FIX: ALL buttons and links here now trigger drillDown() instead of viewIds()
+            let actionBtn = `<button class="btn" style="padding:5px 10px; font-size:0.8rem; width:auto; background:#cbd5e1; color:#333;" onclick="drillDown('${g.brand}', '${g.size}', '${g.color}', '${safePressure}', '${safeWeight}')">Ids</button>`;
+
             let row = '';
-            // Generate Row HTML based on mode
             if (mode === 'size_centric') {
                 row = `<tr>
-                        <td><a href="javascript:void(0)" onclick="drillDown('${g.brand}', '${g.size}', '${g.color}')" style="color: #2563eb; font-weight: bold; text-decoration: underline;">${g.size}</a></td>
+                        <td><a href="javascript:void(0)" onclick="drillDown('${g.brand}', '${g.size}', '${g.color}', '${safePressure}', '${safeWeight}')" style="color: #2563eb; font-weight: bold; text-decoration: underline;">${g.size}</a></td>
                         <td>${g.color}</td>
-                        <td style="text-align:center; font-weight:bold;">${g.count}</td>
-                        <td style="text-align:right;">${totalKg}</td>
-                        <td><button class="btn" style="padding:5px 10px; font-size:0.8rem; width:auto; background:#cbd5e1; color:#333;" onclick="drillDown('${g.brand}', '${g.size}', '${g.color}')">Ids</button></td>
+                        <td>${pressureDisplay}</td>
+                        <td style="text-align:right; color:#64748b; font-weight:500;">${stdWtDisplay}</td>
+                        <td style="text-align:center; font-weight:bold; font-size:1.1rem;">${g.count}</td>
+                        <td>${actionBtn}</td>
                        </tr>`;
             } else if (mode === 'brand_centric') {
                 row = `<tr>
-                        <td><a href="javascript:void(0)" onclick="drillDown('${g.brand}', '${g.size}', '${g.color}')" style="color: #2563eb; font-weight: bold; text-decoration: underline;">${g.brand}</a></td>
+                        <td><a href="javascript:void(0)" onclick="drillDown('${g.brand}', '${g.size}', '${g.color}', '${safePressure}', '${safeWeight}')" style="color: #2563eb; font-weight: bold; text-decoration: underline;">${g.brand}</a></td>
                         <td>${g.color}</td>
-                        <td style="text-align:center; font-weight:bold;">${g.count}</td>
-                        <td style="text-align:right;">${totalKg}</td>
-                        <td><button class="btn" style="padding:5px 10px; font-size:0.8rem; width:auto; background:#cbd5e1; color:#333;" onclick="drillDown('${g.brand}', '${g.size}', '${g.color}')">Ids</button></td>
+                        <td>${pressureDisplay}</td>
+                        <td style="text-align:right; color:#64748b; font-weight:500;">${stdWtDisplay}</td>
+                        <td style="text-align:center; font-weight:bold; font-size:1.1rem;">${g.count}</td>
+                        <td>${actionBtn}</td>
                        </tr>`;
             } else {
                 row = `<tr>
                         <td style="font-weight:bold;">${g.brand}</td>
-                        <td><a href="javascript:void(0)" onclick="drillDown('${g.brand}', '${g.size}', '${g.color}')" style="color: #2563eb; font-weight: bold; text-decoration: underline;">${g.size}</a></td>
+                        <td><a href="javascript:void(0)" onclick="drillDown('${g.brand}', '${g.size}', '${g.color}', '${safePressure}', '${safeWeight}')" style="color: #2563eb; font-weight: bold; text-decoration: underline;">${g.size}</a></td>
                         <td>${g.color}</td>
-                        <td style="text-align:center; font-weight:bold;">${g.count}</td>
-                        <td style="text-align:right;">${totalKg}</td>
-                        <td><button class="btn" style="padding:5px 10px; font-size:0.8rem; width:auto; background:#cbd5e1; color:#333;" onclick="drillDown('${g.brand}', '${g.size}', '${g.color}')">Ids</button></td>
+                        <td>${pressureDisplay}</td>
+                        <td style="text-align:right; color:#64748b; font-weight:500;">${stdWtDisplay}</td>
+                        <td style="text-align:center; font-weight:bold; font-size:1.1rem;">${g.count}</td>
+                        <td>${actionBtn}</td>
                        </tr>`;
             }
             tbody.innerHTML += row;
@@ -806,7 +819,6 @@
         let colorStrings = [];
         Object.keys(colorTotals).sort().forEach(color => {
             let c = colorTotals[color];
-            // Format: Blue: 10 (50kg)
             colorStrings.push(`<span style="margin-right:15px;">${color}: <b>${c.count}</b> <span style="color:#64748b; font-size:0.9em;">(${c.weight.toFixed(1)}kg)</span></span>`);
         });
         
@@ -814,7 +826,7 @@
             tbody.innerHTML += `
                 <tr style="background-color: #f8fafc; border-top: 2px solid #e2e8f0;">
                     <td colspan="${totalColSpan}" style="text-align: right; padding-right: 15px; font-weight:bold; color:#64748b;">Color Wise:</td>
-                    <td colspan="3" style="text-align: left; font-weight:bold; color:#334155;">
+                    <td colspan="2" style="text-align: left; font-weight:bold; color:#334155;">
                         ${colorStrings.join(" | ")}
                     </td>
                 </tr>
@@ -824,55 +836,87 @@
         // --- E. GRAND TOTAL ROW ---
         tbody.innerHTML += `
             <tr style="background-color: #f1f5f9; font-weight: bold; border-top: 2px solid #cbd5e1;">
-                <td colspan="${totalColSpan}" style="text-align: right; padding-right: 15px;">GRAND TOTAL:</td>
+                <td colspan="${totalColSpan}" style="text-align: right; padding-right: 15px;">GRAND TOTAL QTY:</td>
                 <td style="text-align: center; font-size: 1.1rem; color: #2563eb;">${grandTotalQty}</td>
-                <td style="text-align: right; font-size: 1.1rem; color: #2563eb;">${(grandTotalWt).toFixed(3)}</td>
                 <td></td>
+            </tr>
+            <tr style="background-color: #f1f5f9; font-weight: bold;">
+                <td colspan="${totalColSpan}" style="text-align: right; padding-right: 15px;">GRAND TOTAL WEIGHT:</td>
+                <td colspan="2" style="text-align: center; font-size: 1.1rem; color: #ef4444;">${(grandTotalWt).toFixed(3)} Kg</td>
             </tr>
         `;
     }
-
-    // 3. DRILL DOWN FUNCTION
-    // 3. UPDATED DRILL DOWN FUNCTION (Fetches specific IDs from backend)
-    async function drillDown(brand, size, color, targetPressure = null) {
+    // 3. UPDATED DRILL DOWN FUNCTION (Fixed Date Awareness Bug!)
+    async function drillDown(brand, size, color, targetPressure = null, targetWeight = null) {
         isDetailMode = true;
         
-        // 1. Set up the UI and show a loading message
+        // --- THE FIX: We must check which tab we are on BEFORE we switch tabs! ---
+        const isReportTab = document.getElementById('tab-reports').classList.contains('active');
+        // --------------------------------------------------------------------------
+        
+        // Now force the dashboard to switch to the Master Inventory tab
+        if (typeof showTab === 'function') {
+            showTab('inventory');
+        }
+
+        // 1. Set up the UI
         document.getElementById('inv-summary-view').style.display = 'none';
         document.getElementById('inv-detail-view').style.display = 'block';
-        document.getElementById('masterTable').style.display = 'table'; // Safety net to ensure table is visible
+        document.getElementById('masterTable').style.display = 'table'; 
         document.getElementById('detail-nav-header').style.display = 'flex';
         
-        // Update Title to include pressure if it's passed from the chart
+        // Make the Title highly specific
         let title = `📄 ${brand} ${size} ${color}`;
-        if (targetPressure) title += ` (${targetPressure})`;
-        document.getElementById('detail-view-title').innerText = title;
+        if (targetPressure && targetPressure !== '-') title += ` (${targetPressure})`;
+        if (targetWeight) title += ` [${parseFloat(targetWeight).toFixed(3)} Kg]`;
         
         document.getElementById('masterBody').innerHTML = '<tr><td colspan="10" style="text-align:center;">Fetching IDs from server...</td></tr>';
 
-        // 2. THE FIX: Get the pressure from the chart click OR the dropdown
+        // 2. Safely grab the pressure and weight
         const activePressure = targetPressure || document.getElementById('f_pressure').value;
+        const activeWeight = targetWeight || (document.getElementById('f_weight') ? document.getElementById('f_weight').value : '');
 
-        // 3. Ask the backend for just this specific Brand, Size, Color AND Pressure
+        let fetchStatus = document.getElementById('f_status').value;
+        let fetchDate = document.getElementById('f_start').value;
+        let fetchReportType = 'inventory';
+        let fetchTimeRange = '';
+
+        // Since we checked 'isReportTab' earlier, this will now successfully trigger!
+        if (isReportTab) {
+            fetchReportType = currentReportType; // 'production' or 'dispatch'
+            fetchDate = document.getElementById('rep_date').value;
+            fetchTimeRange = document.getElementById('rep_range').value;
+            fetchStatus = 'all'; // Get everything produced/dispatched that day
+            
+            if(fetchDate) title += ` (Date: ${fetchDate})`; // Update title to show date
+        }
+        
+        document.getElementById('detail-view-title').innerText = title;
+
+        // 3. Ask the backend for the UNGROUPED list
         const params = new URLSearchParams({
             name: brand,
             size: size,
             color: color,
-            pressure: activePressure, // <-- Added pressure filter here!
-            status: document.getElementById('f_status').value, // Respect "In Stock" vs "Dispatched"
-            grouped: 'false',
-            page: 1,           // Always start on page 1 for drill-down
-            per_page: 1000     // Load a big chunk so you can see them all at once
+            pressure: activePressure === '-' ? '' : activePressure, // cleans up dashes
+            weight: activeWeight,
+            status: fetchStatus,            
+            report_type: fetchReportType,   
+            date: fetchDate,                
+            time_range: fetchTimeRange,     
+            grouped: 'false',  
+            page: 1,           
+            per_page: 1000     
         });
 
         try {
             const res = await fetch(`/api/inventory?${params}`, { headers: AUTH_HEADER });
             const freshData = await res.json();
             
-            // 3. Render the fetched items (Make sure to use .items because of pagination format)
+            // Render the fetched items
             renderDetailTable(freshData.items, false);
             
-            // 4. Hide pagination controls for this specific drill-down view
+            // Hide pagination for drill-downs
             const paginationEl = document.getElementById('pagination-controls');
             if (paginationEl) paginationEl.style.display = 'none';
 
@@ -882,7 +926,6 @@
             document.getElementById('masterBody').innerHTML = '<tr><td colspan="10" style="text-align:center; color:red;">Error loading data.</td></tr>';
         }
     }
-
     // 4. RENDER DETAIL TABLE
     function renderDetailTable(data, isMainView) {
         document.getElementById('inv-summary-view').style.display = 'none';
@@ -958,6 +1001,7 @@
         fetchInventory();
     }
     // --- REPORTS LOGIC ---
+    // --- REPORTS LOGIC ---
     async function previewReport(type) {
         currentReportType = type;
         const date = document.getElementById('rep_date').value;
@@ -978,16 +1022,20 @@
             container.style.display = 'block';
             tbody.innerHTML = '';
 
-            // --- CLIENT SIDE GROUPING FALLBACK ---
+            // --- CLIENT SIDE GROUPING FALLBACK (Updated with Pressure & Weight) ---
             if(data.length > 0 && data[0].count === undefined) {
                 let groups = {};
                 data.forEach(item => {
-                    let key = `${item.pipe_name}_${item.size}_${item.color}`;
+                    let pressure = item.pressure_class || '-';
+                    let stdWt = item.weight_g || 0;
+                    let key = `${item.pipe_name}_${item.size}_${item.color}_${pressure}_${stdWt}`;
                     if(!groups[key]) {
                         groups[key] = { 
                             pipe_name: item.pipe_name, 
                             size: item.size, 
                             color: item.color, 
+                            pressure_class: pressure,
+                            weight_g: stdWt,
                             count: 0, 
                             total_weight: 0 
                         };
@@ -998,11 +1046,12 @@
                 data = Object.values(groups);
             }
 
-            thead.innerHTML = `<tr><th>Brand</th><th>Size</th><th>Color</th><th style="text-align:center;">Quantity</th><th style="text-align:right;">Total Wt (Kg)</th><th style="text-align:right;">Avg Wt (Kg)</th></tr>`;
+            // --- THE FIX: Added Pressure, Std Wt, and Action Headers ---
+            thead.innerHTML = `<tr><th>Brand</th><th>Size</th><th>Color</th><th>Pressure</th><th style="text-align:right;">Std Wt (Kg)</th><th style="text-align:center;">Quantity</th><th style="text-align:right;">Total Wt (Kg)</th><th style="text-align:center;">Action</th></tr>`;
             
             let grandTotalQty = 0; let grandTotalWt = 0;
             
-            if(data.length === 0) { tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">No records found.</td></tr>`; return; }
+            if(data.length === 0) { tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">No records found.</td></tr>`; return; }
             
             data.forEach(r => {
                 let qty = r.count || 0;
@@ -1011,17 +1060,37 @@
                 grandTotalQty += qty; 
                 grandTotalWt += wt; 
                 
-                tbody.innerHTML += `<tr><td style="font-weight:bold;">${r.pipe_name}</td><td>${r.size}</td><td>${r.color}</td><td style="text-align:center; font-weight:bold;">${qty}</td><td style="text-align:right;">${(wt).toFixed(3)}</td><td style="text-align:right; color:#64748b;">${(qty>0 ? (wt/qty).toFixed(3) : 0)}</td></tr>`;
+                let pressureDisplay = r.pressure_class && r.pressure_class !== '-' ? `<span style="color:#ef4444; font-weight:600;">${r.pressure_class}</span>` : '<span style="color:#cbd5e1;">-</span>';
+                
+                let exactWt = r.weight_g || r.avg_weight || (qty > 0 ? (wt/qty) : 0);
+                let stdWtDisplay = parseFloat(exactWt).toFixed(3);
+                
+                // Clean variables for the drillDown button
+                let safePressure = r.pressure_class === '-' ? '' : (r.pressure_class || '');
+                let safeWeight = exactWt || '';
+
+                // --- THE FIX: Action Button Added ---
+                let actionBtn = `<button class="btn" style="padding:5px 10px; font-size:0.8rem; width:auto; background:#cbd5e1; color:#333;" onclick="drillDown('${r.pipe_name}', '${r.size}', '${r.color}', '${safePressure}', '${safeWeight}')">Ids</button>`;
+
+                tbody.innerHTML += `<tr>
+                    <td style="font-weight:bold;">${r.pipe_name}</td>
+                    <td>${r.size}</td>
+                    <td>${r.color}</td>
+                    <td>${pressureDisplay}</td>
+                    <td style="text-align:right; color:#64748b; font-weight:500;">${stdWtDisplay}</td>
+                    <td style="text-align:center; font-weight:bold; font-size:1.1rem;">${qty}</td>
+                    <td style="text-align:right;">${(wt).toFixed(3)}</td>
+                    <td style="text-align:center;">${actionBtn}</td>
+                </tr>`;
             });
             
-            tbody.innerHTML += `<tr style="background:#f1f5f9; font-weight:bold; border-top:2px solid #cbd5e1;"><td colspan="3" style="text-align:right;">GRAND TOTAL:</td><td style="text-align:center;">${grandTotalQty}</td><td style="text-align:right;">${(grandTotalWt).toFixed(3)}</td><td></td></tr>`;
+            tbody.innerHTML += `<tr style="background:#f1f5f9; font-weight:bold; border-top:2px solid #cbd5e1;"><td colspan="5" style="text-align:right;">GRAND TOTAL:</td><td style="text-align:center; font-size:1.1rem; color:#2563eb;">${grandTotalQty}</td><td style="text-align:right; color:#ef4444;">${(grandTotalWt).toFixed(3)}</td><td></td></tr>`;
             
         } catch(e) { 
             console.error(e); 
             alert("Error loading report data."); 
         }
     }
-
     // --- SHIPMENT HISTORY LOGIC (SEARCH + DATE FILTER + TOTALS) ---
     async function fetchShipmentHistory() {
         const container = document.getElementById('tab-shipments');
@@ -1235,7 +1304,7 @@
             let pressureDisplay = pressure ? `<span style="color:#ef4444; font-weight:600;">${pressure}</span>` : '<span style="color:#cbd5e1;">-</span>';
             let avgWt = row.avg_weight ? parseFloat(row.avg_weight).toFixed(3) + ' Kg' : '<span style="color:#cbd5e1;">-</span>';
             let stockStyle = row.stock < 50 ? 'color: #ef4444;' : 'color: #10b981;';
-
+            let rawWeight = row.avg_weight || row.weight_g || '';
             fullHtml += `
                         <tr style="border-bottom: 1px solid #f1f5f9;">
                             <td style="padding: 12px; font-weight: 700; color: #334155;">${row.pipe_name}</td>
@@ -1246,7 +1315,7 @@
                             
                             <td style="padding: 12px; text-align: center;">
                                 <a href="javascript:void(0)" 
-                                onclick="viewIds('${row.pipe_name}', '${row.size}', '${row.color}', '${row.pressure_class}')"
+                                onclick="viewIds('${row.pipe_name}', '${row.size}', '${row.color}', '${row.pressure_class}', '${rawWeight}')"
                                    style="color: #2563eb; text-decoration: underline; font-weight: 600; font-size: 0.9rem;">
                                    View List ↗
                                 </a>
@@ -1260,32 +1329,39 @@
     container.innerHTML = fullHtml;
 }
 // --- NEW HELPER: Jump to Master Inventory filters ---
-function viewIds(brand, size, color, pressure) {
-    console.log("🚨 viewIds CLICKED! Data received:", { brand, size, color, pressure });
-    // 1. Switch to the Inventory Tab
+function viewIds(brand, size, color, pressure, weight) {
+    console.log("🚨 viewIds CLICKED! Data received:", { brand, size, color, pressure, weight });
+    
     if (typeof showTab === 'function') showTab('inventory');
 
-    // 2. Set the Filter Dropdowns automatically
     document.getElementById('f_name').value = brand || '';
     document.getElementById('f_size').value = size || '';
     document.getElementById('f_color').value = color || '';
     
-    // Safely handle the pressure formatting
+    // Handle Pressure
     const pressureDropdown = document.getElementById('f_pressure');
     if (!pressure || pressure === '-' || pressure === 'null' || pressure === 'undefined') {
-        pressureDropdown.value = ''; // Default to All
+        pressureDropdown.value = ''; 
     } else {
-        // Force it to match the exact value in your HTML dropdown (e.g., "10kgf")
         let cleanPressure = String(pressure).toLowerCase().replace(/\s/g, '');
-        
-        // Check if the option actually exists in the dropdown before setting it
         let optionExists = Array.from(pressureDropdown.options).some(opt => opt.value === cleanPressure);
         pressureDropdown.value = optionExists ? cleanPressure : '';
     }
 
-    document.getElementById('f_status').value = 'stock'; // Force "In Stock" view
+    // --- NEW: Handle Weight invisibly ---
+    let weightInput = document.getElementById('f_weight');
+    if (!weightInput) {
+        weightInput = document.createElement('input');
+        weightInput.type = 'hidden';
+        weightInput.id = 'f_weight';
+        document.body.appendChild(weightInput);
+    }
+    // Clean the weight (Turn "38.000 Kg" into just "38.000")
+    weightInput.value = weight ? String(weight).replace(/[^0-9.]/g, '') : '';
+    // ------------------------------------
 
-    // 3. Run the search
+    document.getElementById('f_status').value = 'stock'; 
+
     fetchInventory();
 }
 // --- NEW: DEAD STOCK DRILL DOWN ---
@@ -1343,7 +1419,8 @@ async function openDeadStockWindow(brand, size, color, pressure) {
         }
     }
 // --- RESET FILTERS FUNCTION ---
-function resetFilters() {
+// --- RESET FILTERS FUNCTION ---
+    function resetFilters() {
         // 1. Clear all the dropdowns and date inputs
         document.getElementById('f_name').value = '';
         document.getElementById('f_size').value = '';
@@ -1352,7 +1429,13 @@ function resetFilters() {
         document.getElementById('f_status').value = 'stock'; 
         document.getElementById('f_start').value = '';
 
-        // 2. THE FIX: Forcefully shut down Reject Mode and hide the buttons
+        // --- THE FIX: Clear the hidden weight filter! ---
+        if (document.getElementById('f_weight')) {
+            document.getElementById('f_weight').value = '';
+        }
+        // ------------------------------------------------
+
+        // 2. Forcefully shut down Reject Mode and hide the buttons
         if (typeof isDeleteMode !== 'undefined') {
             isDeleteMode = false; // Reset the internal memory
         }

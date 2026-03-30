@@ -241,7 +241,10 @@ def build_where_clause(args):
     if args.get('pressure'): conditions.append("pressure_class=?"); params.append(args.get('pressure'))
     
     # ... (name, size, color, pressure, weight filters stay the same above this)
-
+    target_weight = args.get('weight')
+    if target_weight:
+        conditions.append("weight_g = ?")
+        params.append(target_weight)
     report_type = args.get('report_type', 'inventory')
     target_date = args.get('date')
     time_range = args.get('time_range')
@@ -309,10 +312,10 @@ def fetch_inventory_data(args):
     if args.get('grouped') == 'true':
         # SUMMARY VIEW: No pagination needed (Groups all records)
         query = f"""
-            SELECT pipe_name, size, color, pressure_class, 
+            SELECT pipe_name, size, color, pressure_class, weight_g,
                    COUNT(*) as count, SUM(weight_g) as total_weight, AVG(weight_g) as avg_weight 
             FROM labels WHERE {where} 
-            GROUP BY pipe_name, size, color, pressure_class 
+            GROUP BY pipe_name, size, color, pressure_class, weight_g
             ORDER BY pipe_name, size
         """
         with get_db_connection() as conn:
@@ -372,12 +375,23 @@ def get_stats():
         
         # --- 1. NORMAL STOCK SUMMARY ---
         stock_summ = conn.execute("""
-            SELECT pipe_name, size, color, pressure_class,
-                   COUNT(*) as total, 
-                   SUM(CASE WHEN dispatched_at IS NULL AND (dispatched_by IS NULL OR dispatched_by != 'rejected') THEN 1 ELSE 0 END) as stock,
-                   AVG(weight_g) as avg_weight
+            SELECT pipe_name, size, color, pressure_class, weight_g,
+                COUNT(*) as total, 
+                SUM(CASE 
+                        WHEN dispatched_at IS NULL 
+                        AND (dispatched_by IS NULL OR dispatched_by != 'rejected') 
+                        THEN 1 ELSE 0 END) as stock,
+
+                AVG(
+                        CASE 
+                            WHEN dispatched_at IS NULL 
+                            AND (dispatched_by IS NULL OR dispatched_by != 'rejected') 
+                            THEN weight_g 
+                        END
+                ) as avg_weight
+
             FROM labels 
-            GROUP BY pipe_name, size, color, pressure_class
+            GROUP BY pipe_name, size, color, pressure_class, weight_g
         """).fetchall()
         
         prod = conn.execute("SELECT date(created_at) as day, COUNT(*) as count FROM labels WHERE created_at >= date('now', '-7 days') GROUP BY day").fetchall()

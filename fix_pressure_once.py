@@ -9,8 +9,8 @@ def fix_pipe_weights():
         # Update the weight_g column to 38 for IDs between 2450 and 2461
         cur.execute("""
             UPDATE labels 
-            SET weight_g = 38 
-            WHERE id BETWEEN 2450 AND 2461
+            SET weight_g = 15 
+            WHERE id =2678
         """)
         
         # Check how many rows were actually changed
