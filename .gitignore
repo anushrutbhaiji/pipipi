@@ -1,0 +1,10 @@
+cloudflared-linux-arm64.deb
+.lgd-nfy0
+app.log
+__pycache__
+counter_memory.txt
+global_settings.json
+PVC_Factory.desktop
+pvc_Factory.db-shm
+pvc_Factory.db-wal
+tempCodeRunnerFile.python
