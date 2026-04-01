@@ -297,3 +297,31 @@ setInterval(function() {
         })
         .catch(e => {});
 }, 12000);
+let idleTimer;
+const lockOverlay = document.getElementById('touch-lock-overlay');
+
+// Function to lock the screen
+function lockScreen() {
+    lockOverlay.style.display = 'flex';
+}
+
+// Function to unlock and start the countdown
+function unlockScreen() {
+    lockOverlay.style.display = 'none';
+    resetTimer();
+}
+
+// Resets the 60-second timer whenever there is interaction
+function resetTimer() {
+    clearTimeout(idleTimer);
+    // 60000 milliseconds = 1 minute
+    idleTimer = setTimeout(lockScreen, 60000);
+}
+
+// Listen for any touch or click activity to reset the timer
+window.onload = resetTimer;
+window.onmousemove = resetTimer;
+window.onmousedown = resetTimer; // catches touches
+window.ontouchstart = resetTimer; // specific for touchscreens
+window.onclick = resetTimer;
+window.onkeypress = resetTimer;

@@ -1,10 +1,11 @@
 async function previewReport(type) {
     currentReportType = type;
-    const date = document.getElementById('rep_date').value;
+    const fromDate = document.getElementById('rep_from_date').value;
+    const toDate = document.getElementById('rep_to_date').value;
     const range = document.getElementById('rep_range').value;
     
     let grouped = 'true'; 
-    const params = new URLSearchParams({ report_type: type, date: date, time_range: range, grouped: grouped });
+    const params = new URLSearchParams({ report_type: type, from_date: fromDate, to_date: toDate, time_range: range, grouped: grouped });
     
     try {
         const res = await fetch(`/api/inventory?${params}`, { headers: AUTH_HEADER });

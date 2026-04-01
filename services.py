@@ -247,6 +247,8 @@ def build_where_clause(args):
         params.append(target_weight)
     report_type = args.get('report_type', 'inventory')
     target_date = args.get('date')
+    from_date = args.get('from_date')
+    to_date = args.get('to_date')
     time_range = args.get('time_range')
     status = args.get('status')
     
@@ -284,7 +286,10 @@ def build_where_clause(args):
         
         # Date logic defaults to created_at for everything except dispatch reports
         date_field = "dispatched_at" if report_type == 'dispatch' else "created_at"
-        if target_date: 
+        if from_date and to_date:
+            conditions.append(f"date({date_field}) >= ? AND date({date_field}) <= ?")
+            params.extend([from_date, to_date])
+        elif target_date: 
             conditions.append(f"date({date_field}) = ?"); params.append(target_date)
 
     # --- TIME RANGE LOGIC (Hour by hour) ---
@@ -406,6 +411,12 @@ def get_stats():
             GROUP BY pipe_name, size, color, pressure_class, date(created_at)
             ORDER BY days_old DESC
         """).fetchall()
+        recent_24h = conn.execute("""
+            SELECT id, pipe_name, size, color, weight_g, created_at 
+            FROM labels 
+            WHERE created_at >= datetime('now', '-24 hours')
+            ORDER BY created_at ASC
+        """).fetchall()
         
     return {
         "total": total, 
@@ -413,7 +424,8 @@ def get_stats():
         "stock": current_stock, 
         "stock_summary": [dict(r) for r in stock_summ], 
         "production_chart": [dict(r) for r in prod],
-        "dead_stock": [dict(r) for r in dead_stock] 
+        "dead_stock": [dict(r) for r in dead_stock],
+        "recent_timestamps": [dict(r) for r in recent_24h]
     }
 # --- 1. Find a Challan ---
 def find_challan_details(challan_no):

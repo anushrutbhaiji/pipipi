@@ -197,6 +197,142 @@ function updateDashboardUI(data) {
             options: { responsive: true, maintainAspectRatio: false }
         });
     }
+    // =========================================================
+    // DAY/NIGHT SHIFT: SCROLLABLE, COLORED PULSE GRAPHS
+    // =========================================================
+    if(data.recent_timestamps && data.recent_timestamps.length > 0) {
+        
+        let dayLabels = [], dayGaps = [], dayColors = [], dayDetails = [];
+        let nightLabels = [], nightGaps = [], nightColors = [], nightDetails = [];
+        
+        let lastDayTime = null;
+        let lastNightTime = null;
+
+        // Helper to convert DB color names to CSS hex colors for the dots
+        const getColorHex = (c) => {
+            let clr = c ? c.toLowerCase() : '';
+            if(clr.includes('blue')) return '#3b82f6';
+            if(clr.includes('orange')) return '#f59e0b';
+            if(clr.includes('red')) return '#ef4444';
+            if(clr.includes('green')) return '#10b981';
+            if(clr.includes('yellow')) return '#eab308';
+            if(clr.includes('black')) return '#1e293b';
+            if(clr.includes('white')) return '#f8fafc';
+            return '#94a3b8'; // default gray if unknown
+        };
+
+        data.recent_timestamps.forEach(pipe => {
+            let date = new Date(pipe.created_at);
+            let hour = date.getHours();
+            let timeStr = date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            // Prepare detail object for the tooltip
+            let details = {
+                id: pipe.id,
+                name: pipe.pipe_name,
+                size: pipe.size,
+                weight: pipe.weight_g,
+                colorName: pipe.color
+            };
+
+            let dotColor = getColorHex(pipe.color);
+
+            if (hour >= 9 && hour < 21) {
+                // --- DAY SHIFT ---
+                let gap = 0;
+                if (lastDayTime) gap = (date - lastDayTime) / 60000;
+                
+                dayLabels.push(timeStr);
+                dayGaps.push(gap.toFixed(1));
+                dayColors.push(dotColor);
+                dayDetails.push(details);
+                lastDayTime = date;
+            } else {
+                // --- NIGHT SHIFT ---
+                let gap = 0;
+                if (lastNightTime) gap = (date - lastNightTime) / 60000;
+                
+                nightLabels.push(timeStr);
+                nightGaps.push(gap.toFixed(1));
+                nightColors.push(dotColor);
+                nightDetails.push(details);
+                lastNightTime = date;
+            }
+        });
+
+        // Stretch the inner canvas wrappers to make it scrollable based on pipe count
+        // 35 pixels per pipe dot guarantees comfortable spacing!
+        const dayWidth = Math.max(800, dayLabels.length * 35);
+        const nightWidth = Math.max(800, nightLabels.length * 35);
+        document.getElementById('dayCanvasWrapper').style.width = dayWidth + 'px';
+        document.getElementById('nightCanvasWrapper').style.width = nightWidth + 'px';
+
+        // Custom Tooltip Plugin for Chart.js
+        const customTooltip = {
+            callbacks: {
+                title: (ctx) => `Time: ${ctx[0].label}`,
+                label: (ctx) => {
+                    let idx = ctx.dataIndex;
+                    let pipe = ctx.dataset.customData[idx]; // Retrieve our custom details
+                    return [
+                        `Gap: ${ctx.raw} mins`,
+                        `ID: #${pipe.id}`,
+                        `Pipe: ${pipe.name} | ${pipe.size}`,
+                        `Color: ${pipe.colorName}`,
+                        `Weight: ${pipe.weight}Kg`
+                    ];
+                }
+            }
+        };
+
+        const pulseOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { 
+                y: { beginAtZero: true, title: { display: true, text: 'Gap (Minutes)' } },
+                x: { title: { display: true, text: 'Time of Production' } }
+            },
+            plugins: { tooltip: customTooltip },
+            elements: {
+                line: { tension: 0.1, borderWidth: 2, borderColor: '#e2e8f0' }, // Light gray linking line
+                point: { radius: 6, hoverRadius: 9, borderWidth: 2, borderColor: '#fff' } // Colored dots
+            }
+        };
+
+        // Render Day Shift
+        if(window.dayChart) window.dayChart.destroy();
+        window.dayChart = new Chart(document.getElementById('dayShiftChart').getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: dayLabels,
+                datasets: [{
+                    label: 'Day Shift Pulse',
+                    data: dayGaps,
+                    pointBackgroundColor: dayColors, // Array of actual pipe colors
+                    customData: dayDetails, // Pass the details so the tooltip can read it
+                    fill: false
+                }]
+            },
+            options: pulseOptions
+        });
+
+        // Render Night Shift
+        if(window.nightChart) window.nightChart.destroy();
+        window.nightChart = new Chart(document.getElementById('nightShiftChart').getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: nightLabels,
+                datasets: [{
+                    label: 'Night Shift Pulse',
+                    data: nightGaps,
+                    pointBackgroundColor: nightColors, // Array of actual pipe colors
+                    customData: nightDetails, // Pass the details so the tooltip can read it
+                    fill: false
+                }]
+            },
+            options: pulseOptions
+        });
+    }
 }
 
 function renderStockTableTab(dataList) {

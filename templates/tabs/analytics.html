@@ -1,2 +1,26 @@
 
-<div class="card" style="height: 400px; margin-bottom: 2rem;"><h3>Production Trend (7 Days)</h3><canvas id="prodChart"></canvas></div>
+<div style="display: flex; flex-direction: column; gap: 30px; margin-bottom: 2rem;">
+    
+    <div class="card" style="width: 100%; height: 420px; padding-bottom: 0;">
+        <h3>☀️ Day Shift (9 AM - 9 PM)</h3>
+        <div style="width: 100%; overflow-x: auto; overflow-y: hidden; padding-bottom: 10px;">
+            <div id="dayCanvasWrapper" style="height: 320px; min-width: 100%;">
+                <canvas id="dayShiftChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card" style="width: 100%; height: 420px; padding-bottom: 0;">
+        <h3>🌙 Night Shift (9 PM - 9 AM)</h3>
+        <div style="width: 100%; overflow-x: auto; overflow-y: hidden; padding-bottom: 10px;">
+            <div id="nightCanvasWrapper" style="height: 320px; min-width: 100%;">
+                <canvas id="nightShiftChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+</div>
+<div class="card" style="height: 400px; margin-bottom: 2rem;">
+    <h3>Production Trend (7 Days)</h3>
+    <canvas id="prodChart"></canvas>
+</div>

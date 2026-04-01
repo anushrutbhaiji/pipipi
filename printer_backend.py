@@ -35,13 +35,13 @@ def silent_print_label(label_data, printer_name="ZPL"):
                 font_norm = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
                 
                 # 1. BRAND NAME (Sabse upar wala) - Abhi 38 hai
-                font_header = ImageFont.truetype(font_bold, 38) 
+                font_header = ImageFont.truetype(font_bold, 40) 
 
                 # 2. DETAILS (Size, Color, Pressure) - Abhi 32 hai
-                font_main = ImageFont.truetype(font_norm, 32)   
+                font_main = ImageFont.truetype(font_norm, 38)   
 
                 # 3. INFO (Operator, Batch, Time) - Abhi 24 hai
-                font_sub = ImageFont.truetype(font_norm, 24)    
+                font_sub = ImageFont.truetype(font_norm, 32)    
 
                 # 4. BOTTOM ID (Niche wala ID number) - Abhi 28 hai
                 font_id = ImageFont.truetype(font_bold, 48)     
