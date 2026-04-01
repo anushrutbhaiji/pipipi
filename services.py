@@ -544,3 +544,73 @@ def process_return_voucher(pipe_ids):
         conn.commit()
         
         return True, new_voucher_id
+
+def _ensure_verify_table():
+    """Creates the verification_vouchers table if it doesn't exist."""
+    with get_db_connection() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS verification_vouchers (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at      TEXT,
+                filter_info     TEXT,
+                expected_count  INTEGER,
+                scanned_count   INTEGER,
+                missing_count   INTEGER,
+                extra_count     INTEGER,
+                expected_ids    TEXT,
+                scanned_ids     TEXT,
+                missing_ids     TEXT,
+                extra_ids       TEXT,
+                notes           TEXT
+            )
+        """)
+
+
+def create_verification_voucher(payload):
+    """
+    Saves a verification session voucher.
+    Returns the new voucher ID.
+    """
+    _ensure_verify_table()
+
+    timestamp     = datetime.datetime.now().isoformat()
+    filter_info   = json.dumps(payload.get('filter', {}))
+    expected_ids  = payload.get('expected_ids', [])
+    scanned_ids   = payload.get('scanned_ids',  [])
+    missing_ids   = payload.get('missing_ids',  [])
+    extra_ids     = payload.get('extra_ids',    [])
+    notes         = payload.get('notes', '')
+
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO verification_vouchers
+            (created_at, filter_info, expected_count, scanned_count,
+             missing_count, extra_count, expected_ids, scanned_ids,
+             missing_ids, extra_ids, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            timestamp,
+            filter_info,
+            len(expected_ids),
+            len(scanned_ids),
+            len(missing_ids),
+            len(extra_ids),
+            json.dumps(expected_ids),
+            json.dumps(scanned_ids),
+            json.dumps(missing_ids),
+            json.dumps(extra_ids),
+            notes
+        ))
+        conn.commit()
+        return cur.lastrowid
+
+
+def get_verification_vouchers():
+    """Returns all verification vouchers, newest first."""
+    _ensure_verify_table()
+    with get_db_connection() as conn:
+        rows = conn.execute(
+            "SELECT * FROM verification_vouchers ORDER BY created_at DESC"
+        ).fetchall()
+        return [dict(r) for r in rows]

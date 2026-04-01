@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stock Verification — PVC Factory</title>
+<style>
+/* ── Tokens Matching Dispatch Hub ──────────────────── */
+:root {
+    --bg-color: #f4f7f9;
+    --card-bg: #ffffff;
+    --text-main: #1e293b;
+    --text-light: #64748b;
+    --border-color: #e2e8f0;
+    --border2: #cbd5e1;
+    --primary: #0d6efd;
+    --green: #10b981;
+    --green-dim: #d1fae5;
+    --red: #ef4444;
+    --red-dim: #fee2e2;
+    --yellow: #f59e0b;
+    --yellow-dim: #fef3c7;
+    --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
+    --radius: 0.75rem;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* ── Scrollbar ─────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* ── Header ────────────────────────────────────────── */
+.header {
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border-color);
+    padding: 1rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+}
+.header-logo {
+    width: 36px; height: 36px; background: #e0e7ff; color: var(--primary);
+    border-radius: 8px; display: flex; align-items: center;
+    justify-content: center; font-size: 1.1rem; flex-shrink: 0; font-weight: bold;
+}
+.header-title { font-size: 1.5rem; font-weight: 700; margin: 0; letter-spacing: normal; text-transform: none; }
+.header-sub { font-size: 0.85rem; color: var(--text-light); margin-top: 2px; }
+.header-spacer { flex: 1; }
+.chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 12px; border-radius: 20px; font-size: 0.8rem;
+    font-weight: 600; border: 1px solid;
+}
+.chip-blue { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+.chip-green { background: var(--green-dim); border-color: #a7f3d0; color: #047857; }
+.chip-red { background: var(--red-dim); border-color: #fecaca; color: #b91c1c; }
+.chip-yellow { background: var(--yellow-dim); border-color: #fde68a; color: #b45309; }
+.chip-muted { background: #f8fafc; border-color: var(--border-color); color: var(--text-light); }
+.back-btn {
+    text-decoration: none; color: var(--text-light); font-size: 0.9rem;
+    padding: 6px 12px; border: 1px solid var(--border-color); border-radius: 6px;
+    transition: .2s; background: var(--card-bg); font-weight: 600;
+}
+.back-btn:hover { color: var(--text-main); border-color: var(--border2); background: #f8fafc; }
+
+/* ── Stats Bar (Like Dispatch KPIs) ───────────────── */
+.stats-bar {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 1rem; padding: 1.5rem 2rem 0.5rem;
+}
+.stat {
+    background: #f8fafc; border: 1px solid var(--border-color);
+    border-radius: 0.5rem; padding: 1rem;
+    display: flex; flex-direction: column; gap: 4px;
+    border-left: 4px solid var(--primary);
+}
+.stat-exp { border-left-color: var(--text-light); }
+.stat-scanned { border-left-color: var(--green); }
+.stat-missing { border-left-color: var(--red); }
+.stat-extra { border-left-color: var(--yellow); }
+
+.stat-num { font-size: 1.75rem; font-weight: 700; line-height: 1; }
+.stat-label { font-size: 0.8rem; color: var(--text-light); text-transform: uppercase; font-weight: 600; }
+.stat-exp .stat-num { color: var(--text-main); }
+.stat-scanned .stat-num { color: var(--green); }
+.stat-missing .stat-num { color: var(--red); }
+.stat-extra .stat-num { color: var(--yellow); }
+
+/* ── Progress ──────────────────────────────────────── */
+.progress-wrap { padding: 0 2rem 1rem; }
+.progress-meta { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--text-light); font-weight: 600; margin-bottom: 5px; }
+.progress-bar { height: 8px; background: var(--border-color); border-radius: 4px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--primary); border-radius: 4px; transition: width .5s ease; width: 0%; }
+
+/* ── Scanner Section ───────────────────────────────── */
+.scanner-section { padding: 0 2rem 1rem; }
+.scanner-card {
+    background: var(--card-bg); border: 1px solid var(--border-color);
+    border-radius: var(--radius); padding: 1.5rem; box-shadow: var(--shadow-sm);
+}
+.scanner-row { display: flex; gap: 10px; align-items: center; }
+.scan-input {
+    flex: 1; background: #ffffff; border: 2px solid var(--border2);
+    color: var(--text-main); padding: 12px 15px; border-radius: 8px;
+    font-size: 1.25rem; font-family: inherit; outline: none;
+    transition: .2s; text-align: center;
+}
+.scan-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15); }
+.scan-input.flash-ok { animation: flashOk .5s ease; }
+.scan-input.flash-err { animation: flashErr .5s ease; }
+@keyframes flashOk {
+    0% { border-color: var(--green); box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.25); background: #f0fdf4; }
+    100% { border-color: var(--primary); box-shadow: none; background: #ffffff; }
+}
+@keyframes flashErr {
+    0% { border-color: var(--red); box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.25); background: #fef2f2; }
+    100% { border-color: var(--primary); box-shadow: none; background: #ffffff; }
+}
+
+/* ── Buttons ───────────────────────────────────────── */
+.btn {
+    padding: 10px 18px; border: none; border-radius: 8px;
+    cursor: pointer; font-weight: 600; font-size: 1rem;
+    font-family: inherit; transition: .15s; white-space: nowrap;
+    display: inline-block; text-align: center;
+}
+.btn:active { transform: scale(.97); }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: #0b5ed7; }
+.btn-ghost { background: transparent; color: var(--text-light); border: 1px solid var(--border-color); }
+.btn-ghost:hover { color: var(--text-main); border-color: var(--border2); background: #f8fafc; }
+.btn-success { background: var(--green); color: #fff; }
+.btn-success:hover { background: #059669; }
+.btn-danger { background: var(--red); color: #fff; }
+.btn-danger:hover { background: #dc2626; }
+.btn-warning { background: var(--yellow); color: #fff; }
+.btn-warning:hover { background: #d97706; }
+.btn-sm { padding: 6px 12px; font-size: 0.85rem; }
+
+/* ── ESP Toggle ────────────────────────────────────── */
+.esp-row {
+    display: flex; align-items: center; gap: 10px;
+    margin-top: 15px; padding-top: 15px;
+    border-top: 1px solid var(--border-color);
+}
+.toggle-switch { position: relative; width: 44px; height: 24px; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.slider {
+    position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--border2); border-radius: 24px; transition: .3s;
+}
+.slider:before {
+    content: ''; position: absolute; height: 16px; width: 16px;
+    left: 4px; bottom: 4px; background: #fff; border-radius: 50%; transition: .3s;
+}
+input:checked + .slider { background: var(--primary); }
+input:checked + .slider:before { transform: translateX(20px); }
+.esp-label { font-size: 0.9rem; color: var(--text-light); font-weight: 600; }
+.esp-status { font-size: 0.75rem; padding: 2px 8px; border-radius: 10px; background: var(--green-dim); color: #047857; font-weight: bold; display: none; }
+.esp-status.active { display: inline-block; }
+
+/* ── Main Layout ───────────────────────────────────── */
+.main-layout {
+    display: grid; grid-template-columns: 1fr 380px;
+    gap: 1.5rem; padding: 0 2rem 2rem;
+    height: calc(100vh - 360px); min-height: 400px;
+}
+
+/* ── Panel ─────────────────────────────────────────── */
+.panel {
+    background: var(--card-bg); border: 1px solid var(--border-color);
+    border-radius: var(--radius); display: flex; flex-direction: column;
+    overflow: hidden; box-shadow: var(--shadow-sm);
+}
+.panel-head {
+    background: #f8fafc; padding: 1rem 1.5rem; border-bottom: 1px solid var(--border-color);
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 1.1rem; font-weight: 600; color: var(--text-main); flex-shrink: 0;
+}
+.panel-search { padding: 10px 1.5rem; border-bottom: 1px solid var(--border-color); flex-shrink: 0; background: #fff; }
+.panel-search input {
+    width: 100%; background: #f8fafc; border: 1px solid var(--border-color);
+    color: var(--text-main); padding: 8px 12px; border-radius: 6px;
+    font-size: 0.9rem; outline: none;
+}
+.panel-search input:focus { border-color: var(--primary); background: #fff; }
+.panel-body { flex: 1; overflow-y: auto; background: #fff; }
+
+/* ── Pipe Rows ─────────────────────────────────────── */
+.pipe-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 1.5rem; border-bottom: 1px solid #f1f5f9;
+    transition: .2s; cursor: default;
+}
+.pipe-row:hover { background: #f8fafc; }
+.pipe-row.state-scanned { background: #f0fdf4; border-left: 4px solid var(--green); }
+.pipe-row.state-extra { background: #fffbeb; border-left: 4px solid var(--yellow); }
+
+.tick {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.9rem; font-weight: 700; flex-shrink: 0;
+    transition: all .3s ease; border: 1px solid var(--border-color);
+}
+.tick-pending { background: #f8fafc; color: var(--text-light); }
+.tick-ok { background: var(--green); color: #fff; border-color: var(--green); animation: popIn .3s ease; }
+.tick-extra { background: var(--yellow); color: #fff; border-color: var(--yellow); }
+@keyframes popIn { 0% { transform: scale(0); } 70% { transform: scale(1.2); } 100% { transform: scale(1); } }
+
+.pipe-info { flex: 1; min-width: 0; }
+.pipe-id { font-weight: 700; font-size: 1rem; color: var(--text-main); }
+.pipe-meta { font-size: 0.85rem; color: var(--text-light); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pipe-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 12px; white-space: nowrap; flex-shrink: 0; font-weight: bold; }
+
+/* ── Scan Log ──────────────────────────────────────── */
+.log-entry {
+    padding: 10px 1.5rem; border-bottom: 1px solid #f1f5f9;
+    animation: slideIn .2s ease;
+}
+@keyframes slideIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+.log-row { display: flex; justify-content: space-between; align-items: center; }
+.log-id { font-weight: 700; font-size: 0.95rem; color: var(--text-main); }
+.log-time { font-size: 0.75rem; color: var(--text-light); }
+.log-msg { font-size: 0.85rem; color: var(--text-light); margin-top: 4px; }
+.log-tag {
+    display: inline-block; padding: 2px 8px; border-radius: 10px;
+    font-size: 0.7rem; font-weight: 700; margin-left: 8px;
+}
+.tag-ok { background: var(--green-dim); color: #047857; }
+.tag-dup { background: var(--red-dim); color: #b91c1c; }
+.tag-extra { background: var(--yellow-dim); color: #b45309; }
+.tag-invalid { background: #f1f5f9; color: var(--text-light); }
+
+/* ── Bottom Bar ────────────────────────────────────── */
+.bottom-bar {
+    position: sticky; bottom: 0; z-index: 40;
+    background: #f8fafc; border-top: 1px solid var(--border-color);
+    padding: 1rem 2rem; display: flex; gap: 1rem; align-items: center;
+}
+.bb-info { font-size: 0.9rem; color: var(--text-light); font-weight: 500; }
+.bb-info strong { color: var(--text-main); font-weight: 700; }
+
+/* ── Modal Base ────────────────────────────────────── */
+.overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(2px);
+    z-index: 100; align-items: center; justify-content: center; padding: 20px;
+}
+.overlay.open { display: flex; }
+.modal {
+    background: var(--card-bg); border: 1px solid var(--border-color);
+    border-radius: 1rem; display: flex; flex-direction: column;
+    overflow: hidden; max-height: 90vh; width: 100%; box-shadow: var(--shadow-md);
+}
+.modal-head {
+    background: #f8fafc; padding: 1.5rem; border-bottom: 1px solid var(--border-color);
+    display: flex; justify-content: space-between; align-items: center;
+}
+.modal-head h2 { font-size: 1.25rem; font-weight: 700; margin: 0; color: var(--text-main); }
+.modal-close {
+    background: none; border: none; color: var(--text-light);
+    font-size: 1.5rem; cursor: pointer; padding: 0; line-height: 1; font-weight: bold;
+}
+.modal-close:hover { color: var(--red); }
+.modal-body { padding: 1.5rem; overflow-y: auto; flex: 1; }
+.modal-foot {
+    background: #f8fafc; padding: 1.5rem; border-top: 1px solid var(--border-color);
+    display: flex; gap: 10px; justify-content: flex-end;
+}
+
+/* ── Results Modal ─────────────────────────────────── */
+.result-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+.result-box { border-radius: 0.75rem; padding: 1.5rem; text-align: center; border: 1px solid var(--border-color); background: #f8fafc; }
+.rbox-ok { border-bottom: 4px solid var(--green); }
+.rbox-miss { border-bottom: 4px solid var(--red); }
+.rbox-extra { border-bottom: 4px solid var(--yellow); }
+.result-box .rn { font-size: 2.5rem; font-weight: 800; line-height: 1; color: var(--text-main); }
+.result-box .rl { font-size: 0.85rem; color: var(--text-light); margin-top: 8px; font-weight: 600; text-transform: uppercase; }
+
+.section-hd {
+    font-size: 0.9rem; font-weight: 700; text-transform: uppercase;
+    color: var(--text-light); margin-bottom: 10px; display: flex; align-items: center; gap: 10px;
+}
+.section-hd span { background: #f1f5f9; padding: 2px 10px; border-radius: 12px; color: var(--text-main); font-size: 0.8rem; }
+
+.mt { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.mt th { padding: 10px 12px; text-align: left; color: var(--text-light); border-bottom: 2px solid var(--border-color); font-weight: 600; }
+.mt td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; color: var(--text-main); }
+.mt tr:hover td { background: #f8fafc; }
+
+.notes-area {
+    width: 100%; background: #f8fafc; border: 1px solid var(--border-color);
+    color: var(--text-main); padding: 12px; border-radius: 8px;
+    font-family: inherit; font-size: 0.95rem; resize: vertical; outline: none; margin-top: 1rem;
+}
+.notes-area:focus { border-color: var(--primary); background: #fff; }
+
+/* ── Return Modal Pipe List ─────────────────────────── */
+.return-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 15px; border-bottom: 1px solid #f1f5f9; }
+
+/* ── Loading / Empty ─────────────────────────────────  */
+.empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem 1.5rem; color: var(--text-light); font-size: 0.95rem; gap: 10px; text-align: center; }
+.empty .icon { font-size: 2.5rem; margin-bottom: 10px; }
+
+/* ── Toast ───────────────────────────────────────────── */
+.toast {
+    position: fixed; bottom: 80px; right: 2rem; padding: 12px 20px; border-radius: 8px;
+    font-weight: 600; font-size: 0.95rem; z-index: 9999;
+    animation: toastIn .3s ease; box-shadow: var(--shadow-md); color: #fff;
+}
+.toast-ok { background: var(--green); }
+.toast-err { background: var(--red); }
+@keyframes toastIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+
+@media(max-width:900px){
+  .main-layout{grid-template-columns:1fr;height:auto;min-height:0}
+  .panel{max-height:500px}
+  .stats-bar{grid-template-columns:repeat(2,1fr)}
+  .result-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-logo">📦</div>
+  <div>
+    <div class="header-title">STOCK VERIFICATION</div>
+    <div class="header-sub" id="filterLabel">Loading filters…</div>
+  </div>
+  <div class="header-spacer"></div>
+  <span class="chip chip-muted" id="sessionTimer">⏱ 00:00</span>
+  <span class="chip chip-blue" id="verifyMode">VERIFY MODE</span>
+  <a href="/admin" class="back-btn">← Back to Admin</a>
+</div>
+
+<div class="stats-bar">
+  <div class="stat stat-exp">
+    <div class="stat-num" id="sExp">0</div>
+    <div class="stat-label">Expected (Digital)</div>
+  </div>
+  <div class="stat stat-scanned">
+    <div class="stat-num" id="sScanned">0</div>
+    <div class="stat-label">Scanned (Physical)</div>
+  </div>
+  <div class="stat stat-missing">
+    <div class="stat-num" id="sMissing">0</div>
+    <div class="stat-label">Missing</div>
+  </div>
+  <div class="stat stat-extra">
+    <div class="stat-num" id="sExtra">0</div>
+    <div class="stat-label">Extra / Unknown</div>
+  </div>
+</div>
+
+<div class="progress-wrap">
+  <div class="progress-meta">
+    <span id="progLabel">0 / 0 scanned</span>
+    <span id="progPct">0%</span>
+  </div>
+  <div class="progress-bar">
+    <div class="progress-fill" id="progressFill"></div>
+  </div>
+</div>
+
+<div class="scanner-section">
+  <div class="scanner-card">
+    <div class="scanner-row">
+      <input type="text" id="scanInput" class="scan-input"
+        placeholder="🔍 Scan QR code or type Pipe ID…"
+        autocomplete="off" autofocus spellcheck="false">
+      <button class="btn btn-primary" onclick="processScan()">SCAN</button>
+      <button class="btn btn-ghost btn-sm" onclick="undoLast()" title="Undo last scan">↩ UNDO</button>
+      <button class="btn btn-warning btn-sm" onclick="openReturn()">↩ RETURN</button>
+      <button class="btn btn-ghost btn-sm" onclick="resetSession()">🔄</button>
+    </div>
+    <div class="esp-row">
+      <label class="toggle-switch">
+        <input type="checkbox" id="espToggle" onchange="toggleEsp(this)">
+        <span class="slider"></span>
+      </label>
+      <span class="esp-label">ESP AUTO-SCAN</span>
+      <span class="esp-status" id="espStatus">● ACTIVE</span>
+      <div style="flex:1"></div>
+      <span style="font-size:0.85rem;color:var(--text-light);font-weight:600" id="lastScanInfo">—</span>
+    </div>
+  </div>
+</div>
+
+<div class="main-layout" id="mainLayout">
+
+  <div class="panel">
+    <div class="panel-head">
+      <span>📋 Expected Pipes</span>
+      <span class="chip chip-muted" id="pipeCount">0 pipes</span>
+    </div>
+    <div class="panel-search">
+      <input type="text" placeholder="🔎 Search ID, batch, operator…"
+        oninput="filterList(this.value)" id="searchInput">
+    </div>
+    <div class="panel-body" id="pipeBody">
+      <div class="empty"><div class="icon">⏳</div>Loading pipes from database…</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <span>📡 Scan Log</span>
+      <button class="btn btn-ghost btn-sm" onclick="clearLog()">CLEAR</button>
+    </div>
+    <div class="panel-body" id="logBody">
+      <div class="empty"><div class="icon">📡</div>Waiting for first scan…</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="bottom-bar">
+  <div class="bb-info">
+    Session: <strong id="bbCount">0</strong> scanned ·
+    <strong id="bbMissing" style="color:var(--red)">0</strong> missing ·
+    <strong id="bbExtra" style="color:var(--yellow)">0</strong> extra
+  </div>
+  <div style="flex:1"></div>
+  <button class="btn btn-success" onclick="openResults()">
+    ✅ FINALIZE &amp; SAVE VOUCHER
+  </button>
+</div>
+
+
+<div class="overlay" id="resultsOverlay">
+  <div class="modal" style="max-width:960px">
+    <div class="modal-head">
+      <div>
+        <h2>📊 VERIFICATION RESULTS</h2>
+        <div style="font-size:0.85rem;color:var(--text-light);margin-top:3px" id="resSub">—</div>
+      </div>
+      <button class="modal-close" onclick="closeResults()">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="result-grid">
+        <div class="result-box rbox-ok">
+          <div class="rn" id="rScanned">0</div>
+          <div class="rl">Physically Scanned ✓</div>
+        </div>
+        <div class="result-box rbox-miss">
+          <div class="rn" id="rMissing">0</div>
+          <div class="rl">Missing from Stock ✗</div>
+        </div>
+        <div class="result-box rbox-extra">
+          <div class="rn" id="rExtra">0</div>
+          <div class="rl">Extra / Not Expected</div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:22px">
+        <div class="section-hd">
+          <span style="color:var(--red); background:#fef2f2;">✗ Missing Pipes</span>
+          <span id="missBadge">0</span>
+        </div>
+        <div id="missingTable"></div>
+      </div>
+
+      <div style="margin-bottom:22px">
+        <div class="section-hd">
+          <span style="color:var(--yellow); background:#fffbeb;">⚠ Extra / Unknown Pipes</span>
+          <span id="extraBadge">0</span>
+        </div>
+        <div id="extraTable"></div>
+      </div>
+
+      <div style="margin-bottom:8px">
+        <div class="section-hd">
+          <span style="color:var(--green); background:#f0fdf4;">✓ Confirmed Scanned</span>
+          <span id="scannedBadge">0</span>
+        </div>
+        <div id="scannedTable"></div>
+      </div>
+
+      <textarea class="notes-area" id="verifyNotes" rows="3"
+        placeholder="Verification notes (optional) — e.g. physical count reason, discrepancy explanation…"></textarea>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeResults()">CANCEL</button>
+      <button class="btn btn-success" id="saveBtn" onclick="saveVoucher()">
+        💾 SAVE VERIFICATION VOUCHER
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<div class="overlay" id="returnOverlay">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-head">
+      <h2>↩ PROCESS RETURN</h2>
+      <button class="modal-close" onclick="closeReturn()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:0.9rem;color:var(--text-light);margin-bottom:1rem">
+        Scan dispatched pipes to return them back to stock.
+        This reverses a dispatch and recredits inventory.
+      </p>
+      <div style="border:1px solid var(--border-color);border-radius:8px;max-height:260px;overflow-y:auto;margin-bottom:1rem; background:#f8fafc;" id="returnList">
+        <div class="empty" style="padding:24px"><div class="icon">📭</div>No pipes queued yet</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <input type="text" class="scan-input" id="returnInput"
+          placeholder="Scan pipe to add to return queue…" style="font-size:1rem;padding:10px 14px;">
+        <button class="btn btn-primary" onclick="addReturn()">ADD</button>
+      </div>
+      <div style="margin-top:10px;font-size:0.85rem;color:var(--text-light)">
+        <strong id="returnQtyLabel" style="color:var(--text-main)">0</strong> pipe(s) in return queue
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeReturn()">CANCEL</button>
+      <button class="btn btn-warning" onclick="submitReturn()">↩ PROCESS RETURN</button>
+    </div>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='js/verify.js') }}?v=4"></script>
+</body>
+</html>

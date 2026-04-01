@@ -5,7 +5,7 @@ conn = sqlite3.connect("pvc_factory.db")
 cursor = conn.cursor()
 
 # 1. Run the update
-cursor.execute("DELETE FROM shipments WHERE id = 28")
+cursor.execute("UPDATE labels SET dispatched_by = NULL WHERE id IN (1357,2234)")
 
 # 2. Check if it worked
 cursor.execute("SELECT id, pipe_name, weight_g FROM labels WHERE id = 65")

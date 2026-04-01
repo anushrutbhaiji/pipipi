@@ -89,12 +89,25 @@
             <button type="button" class="btn" onclick="backToSummary()" style="background: #64748b; color: white; margin: 0;">⬅️ Back to Summary</button>
             <h3 id="detail-view-title" style="margin: 0; color: #1e293b; font-size: 1.2rem; white-space: nowrap;">📄 Details</h3>
         </div>
-        
         <div style="display: flex; gap: 10px; flex-wrap: nowrap; margin-left: auto;">
-            <button type="button" class="btn" id="enter-delete-mode-btn" onclick="toggleDeleteMode()" style="background: #13285b; color: white; margin: 0;">🗑️ Select Pipes to Reject</button>
-            <button type="button" class="btn" id="cancel-delete-mode-btn" onclick="toggleDeleteMode()" style="background: #94a3b8; color: white; margin: 0; display: none;">Cancel</button>
+            <button type="button" class="btn" id="enter-delete-mode-btn" onclick="toggleDeleteMode()" style="background: #13285b; color: white; margin: 0;">
+                ☑️ Select Pipes...
+            </button>
+            
+            <button type="button" class="btn" id="cancel-delete-mode-btn" onclick="toggleDeleteMode()" style="background: #94a3b8; color: white; margin: 0; display: none;">
+                Cancel
+            </button>
+
+            <button type="button" class="btn" id="verify-stock-btn" onclick="openVerifyModal()" style="background: #166534; color: white; margin: 0; display: none;" disabled>
+                ✅ Verify Stock (0)
+            </button>
+
+            <button type="button" class="btn" id="reprint-selected-btn" onclick="printSelectedLabels()" style="background: #0ea5e9; color: white; margin: 0; display: none;" disabled>
+                🖨️ Print Selected (0)
+            </button>
+
             <button type="button" class="btn" id="bulk-delete-btn" onclick="openDeleteModal()" style="background: #ef4444; color: white; margin: 0; display: none; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);" disabled>
-                Reject Selected (0)
+                🗑️ Reject Selected (0)
             </button>
         </div>
     </div>
