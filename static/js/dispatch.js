@@ -196,8 +196,15 @@ document.addEventListener('DOMContentLoaded', function() {
         let totalWeight = 0;
         tableBody.innerHTML = '';
 
-        // We reverse a copy of the array so the NEWEST scan appears at the TOP of the logbook
-        const displayItems = scannedItems.slice().reverse();
+        // Display scanned items in ascending order by ID
+        const displayItems = scannedItems.slice().sort((a, b) => {
+            const aId = Number(a.id);
+            const bId = Number(b.id);
+            if (!Number.isNaN(aId) && !Number.isNaN(bId)) {
+                return aId - bId;
+            }
+            return String(a.id).localeCompare(String(b.id), undefined, { numeric: true, sensitivity: 'base' });
+        });
 
         displayItems.forEach((item, index) => {
             totalWeight += parseFloat(item.weight_g || 0);
@@ -208,7 +215,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Format the pressure nicely
             const pressureDisplay = item.pressure_class ? `<span style="color:#ef4444; font-weight:600;">${item.pressure_class}</span>` : '<span style="color:#cbd5e1;">-</span>';
 
-            const rowNum = displayItems.length - index;
+            const rowNum = index + 1;
 
             const row = document.createElement('tr');
             row.innerHTML = `
@@ -323,6 +330,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (pipeId === null) {
             setStatus("Invalid QR code or ID format.", "danger");
+            speakResponse("गलत बारकोड"); // 🔊 AUDIO ADDED
             activeLog.status = "Invalid format";
             activeLog.statusType = "danger";
             saveLog(); renderScanLog();
@@ -331,6 +339,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (scannedIds.has(pipeId)) {
             setStatus(`Pipe ID ${pipeId} is already in this sheet.`, "warning");
+            speakResponse("डुप्लीकेट स्कैन") // 🔊 AUDIO ADDED
             activeLog.status = `Duplicate ID ${pipeId}`;
             activeLog.statusType = "warning";
             saveLog(); renderScanLog();
@@ -343,8 +352,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const item = await response.json();
 
             // --- FIX 1: DOUBLE CHECK (The Safety Guard) ---
-            // We check 'scannedIds' AGAIN because it might have changed 
-            // while we were waiting for the server to reply.
             if (scannedIds.has(item.id)) {
                 console.warn(`Duplicate blocked for ID ${item.id}`); // Silent block
                 return; 
@@ -354,6 +361,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (isReturnMode) {
                 if (!item.dispatched_at) {
                     setStatus("Error: Already in Stock!", "danger");
+                    speakResponse("स्टॉक में पहले से है"); // 🔊 AUDIO ADDED
                     activeLog.status = "Already in stock";
                     activeLog.statusType = "danger";
                     saveLog(); renderScanLog();
@@ -362,9 +370,9 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 if (item.dispatched_at) {
                     setStatus("Error: Already Dispatched!", "danger");
+                    speakResponse("डिस्पैच हो चुका है"); // 🔊 AUDIO ADDED
                     activeLog.status = "Already dispatched";
                     activeLog.statusType = "danger";
-                    activeLog.returnableItem = item; // Make it returnable in the log
                     saveLog(); renderScanLog();
                     return;
                 }
@@ -372,6 +380,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
             scannedItems.push(item);
             scannedIds.add(item.id);
+            speakResponse("हो गया"); // 🔊 AUDIO ADDED
+            
             setStatus(`Added: ${item.pipe_name} ${item.size}`, 'success');
             activeLog.status = `Added: ${item.pipe_name} ${item.size}`;
             activeLog.statusType = 'success';
@@ -381,6 +391,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         } catch (error) {
             setStatus(error.message, 'danger');
+            speakResponse("Error, pipe not found"); // 🔊 AUDIO ADDED
             activeLog.status = `Error: ${error.message}`;
             activeLog.statusType = 'danger';
             saveLog(); renderScanLog();
@@ -708,3 +719,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+function speakResponse(text) {
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel(); // पहले की आवाज़ बंद करें
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'hi-IN'; // 🇮🇳 भाषा को हिंदी में सेट करें
+        utterance.rate = 1.1;     // हिंदी के लिए स्पीड थोड़ी सामान्य रखें
+        utterance.pitch = 1.0; 
+        window.speechSynthesis.speak(utterance);
+    }
+}
+ 
